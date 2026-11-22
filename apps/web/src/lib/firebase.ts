@@ -1,7 +1,21 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { browserLocalPersistence, getAuth, setPersistence, type Auth } from 'firebase/auth';
 import { doc, getDocFromServer, getFirestore, type Firestore } from 'firebase/firestore';
-import firebaseConfig from '../../../../firebase-applet-config.json';
+interface FirebaseAppletConfig {
+  readonly projectId?: string;
+  readonly appId?: string;
+  readonly apiKey?: string;
+  readonly authDomain?: string;
+  readonly firestoreDatabaseId?: string;
+  readonly storageBucket?: string;
+  readonly messagingSenderId?: string;
+}
+
+const localFirebaseConfigs = import.meta.glob<FirebaseAppletConfig>(
+  '../../../../firebase-applet-config.json',
+  { eager: true, import: 'default' },
+);
+const firebaseConfig: FirebaseAppletConfig = Object.values(localFirebaseConfigs)[0] ?? {};
 
 export enum OperationType {
   CREATE = 'create',
@@ -36,34 +50,25 @@ let cachedAuth: Auth | null = null;
 let cachedDb: Firestore | null = null;
 let connectionCheckRan = false;
 
+function resolveSetting(envValue: unknown, fileValue: string | undefined): string {
+  if (typeof envValue === 'string' && envValue.trim().length > 0) {
+    return envValue.trim();
+  }
+  return typeof fileValue === 'string' ? fileValue.trim() : '';
+}
+
 function resolveFirebaseClientConfig() {
   const env = import.meta.env;
-  const apiKey =
-    typeof env.VITE_FIREBASE_API_KEY === 'string' && env.VITE_FIREBASE_API_KEY.trim().length > 0
-      ? env.VITE_FIREBASE_API_KEY.trim()
-      : firebaseConfig.apiKey;
-  const authDomain =
-    typeof env.VITE_FIREBASE_AUTH_DOMAIN === 'string' &&
-    env.VITE_FIREBASE_AUTH_DOMAIN.trim().length > 0
-      ? env.VITE_FIREBASE_AUTH_DOMAIN.trim()
-      : firebaseConfig.authDomain;
-  const projectId =
-    typeof env.VITE_FIREBASE_PROJECT_ID === 'string' &&
-    env.VITE_FIREBASE_PROJECT_ID.trim().length > 0
-      ? env.VITE_FIREBASE_PROJECT_ID.trim()
-      : firebaseConfig.projectId;
-  const appId =
-    typeof env.VITE_FIREBASE_APP_ID === 'string' && env.VITE_FIREBASE_APP_ID.trim().length > 0
-      ? env.VITE_FIREBASE_APP_ID.trim()
-      : firebaseConfig.appId;
-
   return {
-    apiKey,
-    authDomain,
-    projectId,
-    appId,
-    storageBucket: firebaseConfig.storageBucket,
-    messagingSenderId: firebaseConfig.messagingSenderId,
+    apiKey: resolveSetting(env.VITE_FIREBASE_API_KEY, firebaseConfig.apiKey),
+    authDomain: resolveSetting(env.VITE_FIREBASE_AUTH_DOMAIN, firebaseConfig.authDomain),
+    projectId: resolveSetting(env.VITE_FIREBASE_PROJECT_ID, firebaseConfig.projectId),
+    appId: resolveSetting(env.VITE_FIREBASE_APP_ID, firebaseConfig.appId),
+    storageBucket: resolveSetting(env.VITE_FIREBASE_STORAGE_BUCKET, firebaseConfig.storageBucket),
+    messagingSenderId: resolveSetting(
+      env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      firebaseConfig.messagingSenderId,
+    ),
   };
 }
 
@@ -93,7 +98,10 @@ export function getFirestoreDb(): Firestore {
   if (cachedDb) {
     return cachedDb;
   }
-  const databaseId = firebaseConfig.firestoreDatabaseId?.trim();
+  const databaseId = resolveSetting(
+    import.meta.env.VITE_FIREBASE_DATABASE_ID,
+    firebaseConfig.firestoreDatabaseId,
+  );
   cachedDb = databaseId
     ? getFirestore(getFirebaseApp(), databaseId)
     : getFirestore(getFirebaseApp());

@@ -9,23 +9,41 @@ dist/
 out/
 *.tsbuildinfo
 
-# Environment files and secrets (CRITICAL: never commit secrets or API keys)
+# Environment files and secrets (CRITICAL: never commit secrets, keys, or applet configs)
 .env
 .env.*
 !.env.example
 *.local
 *.secret
 *.secrets.*
+*.token
 *.pem
 *.key
+*.p8
 *.p12
+*.pfx
 *.crt
+*.cer
+*.der
+*.jks
+*.keystore
+*api-key*
+*apikey*
+secrets/
+.secrets/
 
-# Cloud & Firebase Admin credentials
+# Cloud, Firebase applet configs & Firebase Admin credentials
+firebase-applet-config.json
+firebase-applet-config*.json
+firebase_applet_config.xml
+google-services.json
+GoogleService-Info.plist
+.firebaserc
 *serviceAccount*.json
 *service-account*.json
-firebase-adminsdk-*.json
+*firebase-adminsdk*.json
 *-credentials.json
+*credentials*.json
 .firebase/
 firebase-debug.log*
 firestore-debug.log*
