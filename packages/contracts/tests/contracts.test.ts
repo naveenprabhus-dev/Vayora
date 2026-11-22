@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  airQualityQuerySchema,
   apiErrorResponseSchema,
   authenticatedPrincipalSchema,
+  coordinatesSchema,
   createApiSuccessSchema,
   evaluatePasswordStrength,
   firestoreIdSchema,
   forgotPasswordInputSchema,
   healthStatusPayloadSchema,
   householdLifestyleInputSchema,
+  locationUpdateSchema,
   loginInputSchema,
   passwordResetConfirmSchema,
   registrationInputSchema,
@@ -203,6 +206,60 @@ describe('@uaqa/contracts', () => {
         onboardingCompleted: false,
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('Phase 2 air quality contracts & permissions', () => {
+    it('grants air_quality:read to verified regular users, coordinators, and admins', () => {
+      expect(roleHasPermission('regular_user', 'air_quality:read')).toBe(true);
+      expect(roleHasPermission('community_coordinator', 'air_quality:read')).toBe(true);
+      expect(roleHasPermission('admin', 'air_quality:read')).toBe(true);
+    });
+
+    it('validates airQualityQuerySchema and enforces paired coordinates and strict unknown-key rejection', () => {
+      expect(
+        airQualityQuerySchema.safeParse({
+          latitude: '50.061',
+          longitude: '19.937',
+          hours: '24',
+          scale: 'us_aqi',
+        }).success,
+      ).toBe(true);
+
+      // Unpaired coordinate must fail
+      expect(airQualityQuerySchema.safeParse({ latitude: '50.061' }).success).toBe(false);
+      // Out of range coordinates must fail
+      expect(airQualityQuerySchema.safeParse({ latitude: '95.0', longitude: '19.0' }).success).toBe(
+        false,
+      );
+      // Unknown keys like userId must be rejected cleanly
+      expect(airQualityQuerySchema.safeParse({ userId: 'uid_bob', hours: '24' }).success).toBe(
+        false,
+      );
+      // Hours outside 1..48 must fail
+      expect(airQualityQuerySchema.safeParse({ hours: '72' }).success).toBe(false);
+    });
+
+    it('validates coordinatesSchema and locationUpdateSchema', () => {
+      expect(coordinatesSchema.safeParse({ latitude: 50.06, longitude: 19.93 }).success).toBe(true);
+      expect(coordinatesSchema.safeParse({ latitude: -91, longitude: 19.93 }).success).toBe(false);
+
+      expect(
+        locationUpdateSchema.safeParse({
+          country: 'Poland',
+          city: 'Krakow',
+          neighborhood: 'Krowodrza',
+          postalPrefix: '30-01',
+        }).success,
+      ).toBe(true);
+      expect(
+        locationUpdateSchema.safeParse({
+          country: 'Poland',
+          city: 'Krakow',
+          neighborhood: 'Krowodrza',
+          postalPrefix: '<script>',
+        }).success,
+      ).toBe(false);
     });
   });
 });

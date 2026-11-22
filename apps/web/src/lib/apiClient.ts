@@ -1,10 +1,18 @@
 import type {
+  AirQualityCurrentResponse,
+  AirQualityForecastResponse,
+  AirQualityGuidanceResponse,
+  AirQualityHealthResponse,
+  AirQualityLocationUpdateResponse,
+  AirQualityPollutantsResponse,
   ApiErrorResponse,
   ApiResponse,
+  AqiScaleId,
   AuthenticatedPrincipal,
   HealthStatusPayload,
   HouseholdLifestyleInput,
   HouseholdLifestyleRecord,
+  LocationUpdateInput,
 } from '@uaqa/contracts';
 import { getPublicWebEnv } from './env.ts';
 
@@ -48,6 +56,32 @@ export interface HouseholdProfileEnvelope {
     readonly createdAt?: string;
     readonly updatedAt?: string;
   };
+}
+
+export interface AirQualityRequestOptions {
+  readonly latitude?: number;
+  readonly longitude?: number;
+  readonly hours?: number;
+  readonly scale?: AqiScaleId;
+}
+
+function buildAirQualityQueryString(query?: AirQualityRequestOptions): string {
+  if (!query) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.latitude !== undefined && query.longitude !== undefined) {
+    params.set('latitude', String(query.latitude));
+    params.set('longitude', String(query.longitude));
+  }
+  if (query.hours !== undefined) {
+    params.set('hours', String(query.hours));
+  }
+  if (query.scale !== undefined) {
+    params.set('scale', query.scale);
+  }
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -110,6 +144,28 @@ export function createApiClient(options: ApiClientOptions = {}) {
     validateHouseholdProfile: (input: HouseholdLifestyleInput) =>
       request<{ readonly valid: true; readonly ownerUid: string }>('/household/validate', {
         method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    getAirQualityCurrent: (query?: AirQualityRequestOptions) =>
+      request<AirQualityCurrentResponse>(
+        `/air-quality/current${buildAirQualityQueryString(query)}`,
+      ),
+    getAirQualityForecast: (query?: AirQualityRequestOptions) =>
+      request<AirQualityForecastResponse>(
+        `/air-quality/forecast${buildAirQualityQueryString(query)}`,
+      ),
+    getAirQualityPollutants: (query?: AirQualityRequestOptions) =>
+      request<AirQualityPollutantsResponse>(
+        `/air-quality/pollutants${buildAirQualityQueryString(query)}`,
+      ),
+    getAirQualityGuidance: (query?: AirQualityRequestOptions) =>
+      request<AirQualityGuidanceResponse>(
+        `/air-quality/guidance${buildAirQualityQueryString(query)}`,
+      ),
+    getAirQualityHealth: () => request<AirQualityHealthResponse>('/air-quality/health'),
+    updateAirQualityLocation: (input: LocationUpdateInput) =>
+      request<AirQualityLocationUpdateResponse>('/air-quality/location', {
+        method: 'PUT',
         body: JSON.stringify(input),
       }),
   };

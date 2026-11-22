@@ -20,10 +20,10 @@ export const PLANNED_PRODUCT_MODULES: readonly PlannedModuleDefinition[] = [
   {
     id: 'MOD-01-LOW-EMISSION-ROUTINES',
     requirementId: 'REQ-PROD-01',
-    name: 'Low-Emission Daily Routines',
+    name: 'Air Quality Intelligence & Baseline Routines',
     targetPhase: 'Phase 2',
     summary:
-      'Structured daily winter smog schedules for household commuting, errand timing, and heating habits.',
+      'Live Open-Meteo model telemetry, US EPA & EEA AQI interpretation, 6-pollutant breakdown, hourly forecast, and proportionate winter smog precautions.',
   },
   {
     id: 'MOD-02-INDOOR-AIR-QUALITY',

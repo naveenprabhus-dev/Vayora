@@ -17,6 +17,11 @@ describe('loadConfig', () => {
     expect(config.nodeEnv).toBe('test');
     expect(config.corsAllowedOrigins).toEqual(['https://example.org', 'https://app.example.org']);
     expect(config.rateLimitMaxRequests).toBe(50);
+    expect(config.openMeteoAirQualityBaseUrl).toBe(
+      'https://air-quality-api.open-meteo.com/v1/air-quality',
+    );
+    expect(config.openMeteoGeocodingBaseUrl).toBe('https://geocoding-api.open-meteo.com/v1/search');
+    expect(config.airQualityCacheTtlMs).toBe(600000);
   });
 
   it('includes APP_URL origin and local loopback origins when CORS_ALLOWED_ORIGINS is omitted', () => {

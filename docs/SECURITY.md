@@ -49,3 +49,9 @@
 - **Rate Limiting**: `express-rate-limit` enforces sliding-window limits returning standardized `429 RATE_LIMITED` responses.
 - **Log Redaction**: `redactSensitiveData` strips `Authorization`, `Cookie`, `API keys` (`AIza...`), and JWT strings before any structured log is emitted.
 - **Repository Hygiene**: `.gitignore` blocks `.env`, `.env.*` (except `.env.example`), `*serviceAccount*.json`, `firebase-adminsdk-*.json`, `*.pem`, and `*.key`. CI scans for leaked key patterns before merge.
+
+## 6. External Environmental Provider Isolation (Phase 2 Active)
+
+- **Server-Only Provider Communication**: All Open-Meteo Air Quality and Geocoding requests execute exclusively inside `apps/api/src/modules/air-quality/providers/open-meteo.provider.ts` with `AbortController` timeouts (5,000 ms), bounded single transient retries, 512 KB response size caps, and strict Zod validation. The browser never communicates with upstream provider endpoints directly.
+- **Strict Query & Coordinate Validation**: `airQualityQuerySchema` enforces paired numeric `latitude` (`[-90, 90]`) and `longitude` (`[-180, 180]`), integer `hours` (`1..48`), valid AQI scale identifiers, and `.strict()` unknown-key rejection (blocking `userId`/`ownerUid` tampering).
+- **Protected Routes & Ownership**: Every `/api/v1/air-quality/*` endpoint enforces `authenticate`, `requireVerifiedEmail`, and `requirePermission('air_quality:read')` (or `'profile:write_own'` for `PUT /location`), resolving saved household locations exclusively from authenticated `req.principal.uid`.

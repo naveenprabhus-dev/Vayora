@@ -5,6 +5,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export type Permission =
   | 'profile:read_own'
   | 'profile:write_own'
+  | 'air_quality:read'
   | 'recommendations:read_own'
   | 'recommendations:generate_own'
   | 'community_advisory:read'
@@ -16,6 +17,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly Permission[]>>
   regular_user: [
     'profile:read_own',
     'profile:write_own',
+    'air_quality:read',
     'recommendations:read_own',
     'recommendations:generate_own',
     'community_advisory:read',
@@ -23,6 +25,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly Permission[]>>
   community_coordinator: [
     'profile:read_own',
     'profile:write_own',
+    'air_quality:read',
     'recommendations:read_own',
     'recommendations:generate_own',
     'community_advisory:read',
@@ -31,6 +34,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly Permission[]>>
   admin: [
     'profile:read_own',
     'profile:write_own',
+    'air_quality:read',
     'recommendations:read_own',
     'recommendations:generate_own',
     'community_advisory:read',

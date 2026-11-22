@@ -7,6 +7,7 @@ import { LoginForm } from '../features/auth/LoginForm.tsx';
 import { RegisterForm } from '../features/auth/RegisterForm.tsx';
 import { ResetPasswordForm } from '../features/auth/ResetPasswordForm.tsx';
 import { VerifyEmailScreen } from '../features/auth/VerifyEmailScreen.tsx';
+import { AirQualityDashboard } from '../features/air-quality/AirQualityDashboard.tsx';
 import { HouseholdOnboardingWizard } from '../features/onboarding/HouseholdOnboardingWizard.tsx';
 import { VerifiedProfileSummary } from '../features/onboarding/VerifiedProfileSummary.tsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
@@ -41,8 +42,8 @@ const TITLE_MAP: Readonly<Record<AppRoute, string>> = {
   'forgot-password': 'Forgot Password · Urban Air Quality Assistant',
   'reset-password': 'Reset Password · Urban Air Quality Assistant',
   'verify-email': 'Verify Email · Urban Air Quality Assistant',
-  onboarding: 'Household Onboarding · Urban Air Quality Assistant',
-  'account-ready': 'Verified Household Profile · Urban Air Quality Assistant',
+  onboarding: 'Household Onboarding · VAYORA',
+  'account-ready': 'Air Quality Intelligence · VAYORA',
 };
 
 function readInitialUrlState(): {
@@ -143,6 +144,32 @@ function UrbanAirQualityAppShell({
               throw error;
             }
           }
+        } else {
+          try {
+            await apiClient.getHouseholdProfile();
+          } catch (error) {
+            if (error instanceof ApiClientError && error.statusCode === 404) {
+              const synced = await apiClient.saveHouseholdProfile({
+                country: profile.country,
+                city: profile.city,
+                neighborhood: profile.neighborhood,
+                postalPrefix: profile.postalPrefix,
+                locationPreferences: profile.locationPreferences,
+                householdSize: profile.householdSize,
+                householdComposition: [...profile.householdComposition],
+                primaryCommuteMode: profile.primaryCommuteMode,
+                outdoorActivityPattern: profile.outdoorActivityPattern,
+                ventilationContext: profile.ventilationContext,
+                hasIndoorAirPurifier: profile.hasIndoorAirPurifier,
+                heatingType: profile.heatingType,
+                lifestylePreferences: profile.lifestylePreferences,
+                onboardingCompleted: profile.onboardingCompleted,
+              });
+              profile = synced.profile;
+            } else {
+              throw error;
+            }
+          }
         }
 
         setHouseholdProfile(profile);
@@ -236,7 +263,7 @@ function UrbanAirQualityAppShell({
               href="#main-content"
               className="font-display text-base leading-snug font-bold tracking-tight text-slate-950 sm:text-lg"
             >
-              Urban Air Quality Assistant
+              VAYORA · Urban Air Quality Assistant
             </a>
           </div>
 
@@ -401,23 +428,33 @@ function UrbanAirQualityAppShell({
         route === 'account-ready' &&
         !isEditingProfile &&
         householdProfile ? (
-          <VerifiedProfileSummary
-            user={user}
-            principal={principal}
-            profile={householdProfile}
-            statusMessage={statusMessage}
-            onEditProfile={() => {
-              setStatusMessage(undefined);
-              setIsEditingProfile(true);
-            }}
-          />
+          <div className="space-y-8">
+            <VerifiedProfileSummary
+              user={user}
+              principal={principal}
+              profile={householdProfile}
+              statusMessage={statusMessage}
+              onEditProfile={() => {
+                setStatusMessage(undefined);
+                setIsEditingProfile(true);
+              }}
+            />
+
+            <AirQualityDashboard
+              userId={user.uid}
+              profile={householdProfile}
+              apiClient={apiClient}
+              householdStore={householdStore}
+              onProfileUpdated={(updated) => setHouseholdProfile(updated)}
+            />
+          </div>
         ) : null}
       </main>
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6 text-xs text-slate-600">
-          <p>Urban Air Quality Assistant · Phase 1 Identity &amp; Household Onboarding</p>
-          <p>Verified Accounts Only · WCAG 2.2 AA · Server-Verified RBAC</p>
+          <p>VAYORA · Urban Air Quality Assistant · Air Quality Intelligence</p>
+          <p>Verified Accounts Only · WCAG 2.2 AA · Open-Meteo CC BY 4.0</p>
         </div>
       </footer>
     </div>

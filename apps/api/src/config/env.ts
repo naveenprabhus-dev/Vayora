@@ -16,6 +16,17 @@ const envSchema = z.object({
   AIR_QUALITY_API_PROVIDER: z.enum(['open-meteo', 'airnow', 'iqair']).default('open-meteo'),
   AIR_QUALITY_API_KEY: z.string().optional().default(''),
   AIR_QUALITY_API_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(5000),
+  OPEN_METEO_AIR_QUALITY_BASE_URL: z
+    .string()
+    .url()
+    .default('https://air-quality-api.open-meteo.com/v1/air-quality'),
+  OPEN_METEO_GEOCODING_BASE_URL: z
+    .string()
+    .url()
+    .default('https://geocoding-api.open-meteo.com/v1/search'),
+  AIR_QUALITY_CACHE_TTL_MS: z.coerce.number().int().min(1000).max(3600000).default(600000),
+  AIR_QUALITY_STALE_TTL_MS: z.coerce.number().int().min(10000).max(86400000).default(21600000),
+  GEOCODING_CACHE_TTL_MS: z.coerce.number().int().min(10000).max(604800000).default(86400000),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).max(3600000).default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(1).max(10000).default(100),
   RATE_LIMIT_AUTH_MAX_REQUESTS: z.coerce.number().int().min(1).max(1000).default(20),
@@ -35,6 +46,11 @@ export interface AppConfig {
   readonly airQualityApiProvider: 'open-meteo' | 'airnow' | 'iqair';
   readonly airQualityApiKey: string;
   readonly airQualityApiTimeoutMs: number;
+  readonly openMeteoAirQualityBaseUrl: string;
+  readonly openMeteoGeocodingBaseUrl: string;
+  readonly airQualityCacheTtlMs: number;
+  readonly airQualityStaleTtlMs: number;
+  readonly geocodingCacheTtlMs: number;
   readonly rateLimitWindowMs: number;
   readonly rateLimitMaxRequests: number;
   readonly rateLimitAuthMaxRequests: number;
@@ -108,6 +124,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     airQualityApiProvider: data.AIR_QUALITY_API_PROVIDER,
     airQualityApiKey: data.AIR_QUALITY_API_KEY,
     airQualityApiTimeoutMs: data.AIR_QUALITY_API_TIMEOUT_MS,
+    openMeteoAirQualityBaseUrl: data.OPEN_METEO_AIR_QUALITY_BASE_URL,
+    openMeteoGeocodingBaseUrl: data.OPEN_METEO_GEOCODING_BASE_URL,
+    airQualityCacheTtlMs: data.AIR_QUALITY_CACHE_TTL_MS,
+    airQualityStaleTtlMs: data.AIR_QUALITY_STALE_TTL_MS,
+    geocodingCacheTtlMs: data.GEOCODING_CACHE_TTL_MS,
     rateLimitWindowMs: data.RATE_LIMIT_WINDOW_MS,
     rateLimitMaxRequests: data.RATE_LIMIT_MAX_REQUESTS,
     rateLimitAuthMaxRequests: data.RATE_LIMIT_AUTH_MAX_REQUESTS,

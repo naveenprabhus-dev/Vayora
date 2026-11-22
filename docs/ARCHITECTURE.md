@@ -5,23 +5,23 @@
 Urban Air Quality Assistant is structured as a strict TypeScript monorepo separating presentation (`apps/web`), server orchestration and security enforcement (`apps/api`), shared runtime schemas and domain contracts (`packages/contracts`), shared compiler/linter configurations (`packages/config`), and database security infrastructure (`infrastructure/firebase`).
 
 ```text
-Browser (apps/web, React 19 + Tailwind CSS)
+Browser (apps/web, React 19 + Tailwind CSS — VAYORA Workspace)
   │  HTTPS / JSON + Bearer Firebase ID Token
   ▼
 API Boundary (apps/api, Express + Helmet + Rate Limit + Zod)
   ├── Auth Middleware       ──► Firebase ID Token Verification (server-side)
   ├── Authorization Guards  ──► RBAC + Resource Ownership Verification
-  ├── AI Orchestration      ──► @google/genai (server-only GEMINI_API_KEY)
-  ├── Air Quality Adapter   ──► Live AQI Provider + Graceful Fallback (Phase 2)
+  ├── AI Orchestration      ──► @google/genai (Phase 4+, server-only GEMINI_API_KEY)
+  ├── Air Quality Module    ──► Open-Meteo Provider + EPA/EEA Engine + Cache/Stale Fallback (Phase 2 Active)
   └── Persistence Layer     ──► Repository Contracts / Cloud Firestore
 ```
 
 ## 2. Package & Module Responsibilities
 
-- **`packages/contracts` (`@uaqa/contracts`)**: Single source of truth for Zod validation schemas, TypeScript domain types, RBAC role/permission matrices, and standardized `ApiResponse<T>` envelopes.
+- **`packages/contracts` (`@uaqa/contracts`)**: Single source of truth for Zod validation schemas, TypeScript domain types, RBAC role/permission matrices (`air_quality:read`), and standardized `ApiResponse<T>` envelopes.
 - **`packages/config` (`@uaqa/config`)**: Shared strict TypeScript base presets (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) and ESLint 9 flat configurations (including `@firebase/eslint-plugin-security-rules` and `eslint-plugin-jsx-a11y`).
-- **`apps/api` (`@uaqa/api`)**: Modular Express backend providing centralized configuration (`src/config`), security middleware (`src/middleware`), typed errors and secret redaction (`src/utils`), auth/AI service adapters (`src/services`), repository contracts (`src/repositories`), and versioned routes (`src/modules`).
-- **`apps/web` (`@uaqa/web`)**: Accessible React frontend shell, reusable WCAG 2.2 AA UI primitives (`src/components`), typed API client (`src/lib/apiClient.ts`), and Phase 1–5 module registry (`src/features/moduleRegistry.ts`).
+- **`apps/api` (`@uaqa/api`)**: Modular Express backend providing centralized configuration (`src/config`), security middleware (`src/middleware`), typed errors and secret redaction (`src/utils`), auth/AI service adapters (`src/services`), repository contracts (`src/repositories`), and versioned routes (`src/modules/auth`, `src/modules/household`, `src/modules/air-quality`, `src/modules/health`, `src/modules/system`).
+- **`apps/web` (`@uaqa/web`)**: Accessible React frontend shell, reusable WCAG 2.2 AA UI primitives (`src/components`), typed API client (`src/lib/apiClient.ts`), VAYORA Air Quality Intelligence dashboard (`src/features/air-quality/*`), and Phase 1–5 module registry (`src/features/moduleRegistry.ts`).
 - **`infrastructure/firebase`**: Declarative entity blueprint (`firebase-blueprint.json`), hardened security rules (`firestore.rules`), composite indexes (`firestore.indexes.json`), and adversarial TDD spec (`security_spec.md`).
 
 ## 3. Google AI Studio Execution Compatibility & Decisions

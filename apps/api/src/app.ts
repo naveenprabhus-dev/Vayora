@@ -7,6 +7,14 @@ import { createErrorHandler, notFoundHandler } from './middleware/errorHandler.t
 import { createApiRateLimiter } from './middleware/rateLimiter.ts';
 import { attachRequestContext, requestLogger } from './middleware/requestContext.ts';
 import { createAuthRouter } from './modules/auth/auth.routes.ts';
+import { AirQualityCacheRepository } from './modules/air-quality/air-quality.repository.ts';
+import { createAirQualityRouter } from './modules/air-quality/air-quality.routes.ts';
+import { AirQualityService } from './modules/air-quality/air-quality.service.ts';
+import type {
+  AirQualityProvider,
+  GeocodingProvider,
+} from './modules/air-quality/providers/air-quality.provider.interface.ts';
+import { OpenMeteoAirQualityProvider } from './modules/air-quality/providers/open-meteo.provider.ts';
 import { createHealthRouter } from './modules/health/health.routes.ts';
 import { createHouseholdRouter } from './modules/household/household.routes.ts';
 import { createSystemRouter } from './modules/system/system.routes.ts';
@@ -26,6 +34,9 @@ export interface ApiDependencies {
   readonly tokenVerifier?: TokenVerifier;
   readonly roleResolver?: RoleResolver;
   readonly householdRepository?: HouseholdRepository;
+  readonly airQualityProvider?: AirQualityProvider;
+  readonly geocodingProvider?: GeocodingProvider;
+  readonly airQualityCacheRepository?: AirQualityCacheRepository;
   readonly rateLimitMaxRequests?: number;
 }
 
@@ -44,6 +55,30 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
     });
   const householdRepository = deps.householdRepository ?? new InMemoryHouseholdRepository();
 
+  const defaultOpenMeteoProvider = new OpenMeteoAirQualityProvider({
+    airQualityBaseUrl: config.openMeteoAirQualityBaseUrl,
+    geocodingBaseUrl: config.openMeteoGeocodingBaseUrl,
+    timeoutMs: config.airQualityApiTimeoutMs,
+  });
+  const airQualityProvider = deps.airQualityProvider ?? defaultOpenMeteoProvider;
+  const geocodingProvider = deps.geocodingProvider ?? defaultOpenMeteoProvider;
+  const cacheRepository =
+    deps.airQualityCacheRepository ??
+    new AirQualityCacheRepository({
+      cacheTtlMs: config.airQualityCacheTtlMs,
+      staleTtlMs: config.airQualityStaleTtlMs,
+      geocodeTtlMs: config.geocodingCacheTtlMs,
+    });
+
+  const airQualityService = new AirQualityService({
+    airQualityProvider,
+    geocodingProvider,
+    householdRepository,
+    cacheRepository,
+    cacheTtlSeconds: Math.round(config.airQualityCacheTtlMs / 1000),
+    staleTtlSeconds: Math.round(config.airQualityStaleTtlMs / 1000),
+  });
+
   const apiRouter = Router();
   apiRouter.use(attachRequestContext);
   apiRouter.use(requestLogger);
@@ -54,6 +89,10 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
   apiRouter.use(
     '/household',
     createHouseholdRouter({ tokenVerifier, roleResolver, householdRepository }),
+  );
+  apiRouter.use(
+    '/air-quality',
+    createAirQualityRouter({ tokenVerifier, roleResolver, airQualityService }),
   );
   apiRouter.use('/system', createSystemRouter({ tokenVerifier, roleResolver }));
   apiRouter.use(notFoundHandler);

@@ -37,7 +37,7 @@ export function VerifiedProfileSummary({
     <div className="space-y-6">
       <section aria-labelledby="account-ready-heading" className="space-y-2">
         <p className="font-mono text-xs font-medium tracking-wide text-slate-600 uppercase">
-          Phase 1 Complete · Verified Household Workspace
+          VAYORA · Verified Household Workspace
         </p>
         <h1 id="account-ready-heading" className="text-3xl font-bold tracking-tight text-slate-950">
           Welcome, {user.displayName}
@@ -156,14 +156,6 @@ export function VerifiedProfileSummary({
           </dl>
         </SurfaceCard>
       </div>
-
-      <AlertBanner tone="info" title="Module Roadmap Status">
-        <p>
-          Phase 1 authentication, RBAC boundaries, and household onboarding are active. Live AQI
-          telemetry, low-emission daily routines, indoor guidance, and Gemini-powered explanations
-          will connect to this verified household context in Phase 2+.
-        </p>
-      </AlertBanner>
     </div>
   );
 }
