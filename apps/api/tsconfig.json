@@ -1,0 +1,11 @@
+{
+  "extends": "../../packages/config/typescript/node.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "paths": {
+      "@uaqa/contracts": ["../../packages/contracts/src/index.ts"],
+      "@uaqa/contracts/*": ["../../packages/contracts/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "../../packages/contracts/src/**/*.ts"]
+}

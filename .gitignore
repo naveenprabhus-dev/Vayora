@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment files and secrets (CRITICAL: never commit secrets or API keys)
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+*.secrets.*
+*.pem
+*.key
+*.p12
+*.crt
+
+# Cloud & Firebase Admin credentials
+*serviceAccount*.json
+*service-account*.json
+firebase-adminsdk-*.json
+*-credentials.json
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# Testing & coverage
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.vitest-cache/
+
+# OS & editor artifacts
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea/

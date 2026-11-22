@@ -1,0 +1,19 @@
+{
+  "extends": "../../packages/config/typescript/react.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@uaqa/contracts": ["../../packages/contracts/src/index.ts"],
+      "@uaqa/contracts/*": ["../../packages/contracts/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "../../packages/contracts/src/**/*.ts"
+  ]
+}

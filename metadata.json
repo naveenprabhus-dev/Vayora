@@ -1,0 +1,6 @@
+{
+  "name": "Urban Air Quality Assistant",
+  "description": "AI-powered community platform helping families navigate severe winter smog through low-emission routines, indoor air quality guidance, sustainable alternatives, and personalized impact explanations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

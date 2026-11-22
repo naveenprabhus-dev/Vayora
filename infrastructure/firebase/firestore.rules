@@ -1,0 +1,401 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: deny all access unless explicitly matched and permitted.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Hardened Global Primitives
+    // -------------------------------------------------------------------------
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isVerifiedUser() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        (
+          request.auth.token.email == 'naveenprabhuvitap@gmail.com' &&
+          request.auth.token.email_verified == true
+        ) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isCommunityCoordinator() {
+      return isVerifiedUser() &&
+        exists(/databases/$(database)/documents/coordinators/$(request.auth.uid));
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints (synchronized with @uaqa/contracts)
+    // -------------------------------------------------------------------------
+    function isValidUserAccount(data, expectedUid) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == expectedUid &&
+        data.displayName is string &&
+        data.displayName.size() >= 2 &&
+        data.displayName.size() <= 80 &&
+        data.role in ['regular_user', 'community_coordinator', 'admin'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, expectedUid) {
+      return data.keys().hasAll(['uid', 'email', 'termsAcceptedAt', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'termsAcceptedAt', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == expectedUid &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 320 &&
+        data.termsAcceptedAt is timestamp &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLocationPreferences(prefs) {
+      return prefs is map &&
+        prefs.keys().hasAll(['primaryZoneType', 'alertsEnabled']) &&
+        prefs.keys().hasOnly(['primaryZoneType', 'alertsEnabled']) &&
+        prefs.primaryZoneType in [
+          'urban_core',
+          'suburban_residential',
+          'industrial_adjacent',
+          'valley_basin'
+        ] &&
+        prefs.alertsEnabled is bool;
+    }
+
+    function isValidLifestylePreferences(prefs) {
+      return prefs is map &&
+        prefs.keys().hasAll(['preferredGuidanceFocus', 'reminderCadence']) &&
+        prefs.keys().hasOnly(['preferredGuidanceFocus', 'reminderCadence']) &&
+        prefs.preferredGuidanceFocus in [
+          'balanced',
+          'commute_exposure',
+          'indoor_air',
+          'low_emission_habits'
+        ] &&
+        prefs.reminderCadence in ['daily_smog_alerts', 'high_aqi_only', 'weekly_summary'];
+    }
+
+    function isValidHouseholdProfile(data) {
+      return data.keys().hasAll([
+          'ownerUid',
+          'country',
+          'city',
+          'neighborhood',
+          'postalPrefix',
+          'locationPreferences',
+          'householdSize',
+          'householdComposition',
+          'primaryCommuteMode',
+          'outdoorActivityPattern',
+          'ventilationContext',
+          'hasIndoorAirPurifier',
+          'heatingType',
+          'lifestylePreferences',
+          'onboardingCompleted',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerUid',
+          'country',
+          'city',
+          'neighborhood',
+          'postalPrefix',
+          'locationPreferences',
+          'householdSize',
+          'householdComposition',
+          'primaryCommuteMode',
+          'outdoorActivityPattern',
+          'ventilationContext',
+          'hasIndoorAirPurifier',
+          'heatingType',
+          'lifestylePreferences',
+          'onboardingCompleted',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.ownerUid) &&
+        data.country is string &&
+        data.country.size() >= 2 &&
+        data.country.size() <= 80 &&
+        data.city is string &&
+        data.city.size() >= 2 &&
+        data.city.size() <= 100 &&
+        data.neighborhood is string &&
+        data.neighborhood.size() >= 2 &&
+        data.neighborhood.size() <= 120 &&
+        data.postalPrefix is string &&
+        data.postalPrefix.size() >= 2 &&
+        data.postalPrefix.size() <= 16 &&
+        data.postalPrefix.matches('^[a-zA-Z0-9\\-\\s]+$') &&
+        isValidLocationPreferences(data.locationPreferences) &&
+        data.householdSize is int &&
+        data.householdSize >= 1 &&
+        data.householdSize <= 20 &&
+        data.householdComposition is list &&
+        data.householdComposition.size() >= 1 &&
+        data.householdComposition.size() <= 5 &&
+        data.householdComposition[0] is string &&
+        data.householdComposition.hasOnly([
+          'adults',
+          'young_children',
+          'school_age_children',
+          'older_adults',
+          'pets'
+        ]) &&
+        data.primaryCommuteMode in [
+          'walking',
+          'cycling',
+          'public_transit',
+          'ev',
+          'carpool',
+          'gas_vehicle'
+        ] &&
+        data.outdoorActivityPattern in [
+          'mostly_indoors',
+          'morning_commute',
+          'evening_exercise',
+          'school_run_family',
+          'extended_outdoor'
+        ] &&
+        data.ventilationContext in [
+          'natural_windows',
+          'mechanical_hvac',
+          'filtered_hvac_merv13',
+          'portable_hepa_only'
+        ] &&
+        data.hasIndoorAirPurifier is bool &&
+        data.heatingType in ['electric', 'heat_pump', 'natural_gas', 'solid_fuel', 'district'] &&
+        isValidLifestylePreferences(data.lifestylePreferences) &&
+        data.onboardingCompleted is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCommunityAdvisory(data) {
+      return data.keys().hasAll([
+          'authorUid',
+          'city',
+          'title',
+          'summary',
+          'severity',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'authorUid',
+          'city',
+          'title',
+          'summary',
+          'severity',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.authorUid) &&
+        data.city is string &&
+        data.city.size() >= 2 &&
+        data.city.size() <= 100 &&
+        data.title is string &&
+        data.title.size() >= 5 &&
+        data.title.size() <= 140 &&
+        data.summary is string &&
+        data.summary.size() >= 10 &&
+        data.summary.size() <= 1200 &&
+        data.severity in ['moderate', 'unhealthy_sensitive', 'unhealthy', 'very_unhealthy', 'hazardous'] &&
+        data.status in ['active', 'archived'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Trusted Role Lookup Collections (Admin-Only Writes)
+    // -------------------------------------------------------------------------
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list, create, update, delete: if false;
+    }
+
+    match /coordinators/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if isValidId(userId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // User Accounts & Isolated PII Subcollection
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      // Prevent self-assigned privilege escalation on creation: role must be regular_user.
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserAccount(incoming(), userId) &&
+        incoming().role == 'regular_user' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId) &&
+        isValidUserAccount(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(userId) && isAdmin();
+
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin());
+        allow list: if false;
+
+        allow create: if isValidId(userId) &&
+          docId == 'info' &&
+          isOwner(userId) &&
+          isValidUserPrivateInfo(incoming(), userId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time;
+
+        allow update: if isValidId(userId) &&
+          docId == 'info' &&
+          isOwner(userId) &&
+          isValidUserPrivateInfo(incoming(), userId) &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().termsAcceptedAt == existing().termsAcceptedAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isAdmin();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Household Location & Lifestyle Profiles (Strict 1:1 User Ownership)
+    // -------------------------------------------------------------------------
+    match /households/{householdId} {
+      allow get: if isValidId(householdId) &&
+        isVerifiedUser() &&
+        (existing().ownerUid == request.auth.uid || isAdmin());
+
+      allow list: if isVerifiedUser() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if isValidId(householdId) &&
+        householdId == request.auth.uid &&
+        isVerifiedUser() &&
+        isValidHouseholdProfile(incoming()) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(householdId) &&
+        isVerifiedUser() &&
+        isValidHouseholdProfile(incoming()) &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().ownerUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'country',
+              'city',
+              'neighborhood',
+              'postalPrefix',
+              'locationPreferences',
+              'householdSize',
+              'householdComposition',
+              'primaryCommuteMode',
+              'outdoorActivityPattern',
+              'ventilationContext',
+              'hasIndoorAirPurifier',
+              'heatingType',
+              'lifestylePreferences',
+              'onboardingCompleted',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isValidId(householdId) &&
+        isVerifiedUser() &&
+        (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Community Advisories (No Social Feeds; Verified Read, Coordinator Write)
+    // -------------------------------------------------------------------------
+    match /communityAdvisories/{advisoryId} {
+      allow get: if isValidId(advisoryId) && isVerifiedUser();
+      allow list: if isVerifiedUser() && resource.data.status == 'active';
+
+      allow create: if isValidId(advisoryId) &&
+        (isCommunityCoordinator() || isAdmin()) &&
+        isValidCommunityAdvisory(incoming()) &&
+        incoming().authorUid == request.auth.uid &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(advisoryId) &&
+        isValidCommunityAdvisory(incoming()) &&
+        incoming().authorUid == existing().authorUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        existing().status != 'archived' && (
+          isAdmin() ||
+          (
+            isCommunityCoordinator() &&
+            existing().authorUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'city',
+              'title',
+              'summary',
+              'severity',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isValidId(advisoryId) && isAdmin();
+    }
+  }
+}
