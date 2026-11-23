@@ -23,6 +23,7 @@ export interface AirQualityDashboardProps {
   readonly apiClient: WebApiClient;
   readonly householdStore: HouseholdStore;
   readonly onProfileUpdated: (updated: HouseholdLifestyleRecord) => void;
+  readonly onTelemetryUpdated?: (syncToken: string) => void;
 }
 
 export function AirQualityDashboard({
@@ -31,6 +32,7 @@ export function AirQualityDashboard({
   apiClient,
   householdStore,
   onProfileUpdated,
+  onTelemetryUpdated,
 }: AirQualityDashboardProps) {
   const [selectedScale, setSelectedScale] = useState<AqiScaleId>('us_aqi');
   const [horizonHours, setHorizonHours] = useState<24 | 48>(24);
@@ -60,6 +62,9 @@ export function AirQualityDashboard({
         const response = await apiClient.getAirQualityCurrent({ hours: targetHours });
         setCurrentData(response);
         setForecastSeries(response.forecastPreview);
+        onTelemetryUpdated?.(
+          `${response.transparency.fetchedAt}:${response.transparency.freshnessStatus}`,
+        );
       } catch (error) {
         setLoadError(
           error instanceof Error
@@ -85,6 +90,9 @@ export function AirQualityDashboard({
           setCurrentData(response);
           setForecastSeries(response.forecastPreview);
           setLoadError(null);
+          onTelemetryUpdated?.(
+            `${response.transparency.fetchedAt}:${response.transparency.freshnessStatus}`,
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -106,7 +114,7 @@ export function AirQualityDashboard({
     return () => {
       cancelled = true;
     };
-  }, [apiClient, locationKey]);
+  }, [apiClient, locationKey, onTelemetryUpdated]);
 
   const handleChangeHorizon = useCallback(
     async (nextHours: 24 | 48) => {

@@ -368,6 +368,80 @@ async function setupHarnessApiRoutes(
       ),
     });
   });
+
+  await page.route('**/api/v1/routines/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          routineId: 'e2e-routine-id',
+          generatedAt: '2026-11-22T12:00:00Z',
+          cachedResult: false,
+          location: createDashboardPayload({ city: activeCity, neighborhood: activeNeighborhood })
+            .location,
+          profileContext: {
+            primaryZoneType: 'valley_basin',
+            householdSize: 4,
+            householdComposition: ['adults', 'young_children'],
+            savedCommuteMode: 'public_transit',
+            effectiveCommuteMode: 'public_transit',
+            savedOutdoorPattern: 'school_run_family',
+            effectiveOutdoorPattern: 'school_run_family',
+            heatingType: 'district',
+            ventilationContext: 'filtered_hvac_merv13',
+            hasIndoorAirPurifier: true,
+            preferredGuidanceFocus: 'indoor_air',
+            isScenarioPreview: false,
+          },
+          airQualityContext: {
+            usAqi: createDashboardPayload({ city: activeCity, neighborhood: activeNeighborhood })
+              .aqi.usAqi,
+            europeanAqi: createDashboardPayload({
+              city: activeCity,
+              neighborhood: activeNeighborhood,
+            }).aqi.europeanAqi,
+            dominantPollutant: createDashboardPayload({
+              city: activeCity,
+              neighborhood: activeNeighborhood,
+            }).aqi.dominantPollutant,
+            pollutants: createDashboardPayload({
+              city: activeCity,
+              neighborhood: activeNeighborhood,
+            }).pollutants,
+            transparency: createDashboardPayload({
+              city: activeCity,
+              neighborhood: activeNeighborhood,
+            }).transparency,
+          },
+          overview: {
+            headline: 'Low-Emission Daily Routines',
+            summary: 'Summary',
+            totalRecommended: 2,
+            totalOptional: 1,
+            totalUnavailable: 0,
+            exposureCount: 2,
+            emissionCount: 1,
+            bothCount: 0,
+            safetyAndScopeNotice: 'Evidence-based guidance only.',
+          },
+          betterTimeWindows: {
+            status: 'available',
+            windows: [],
+            limitationDisclosure: 'Model derived windows.',
+          },
+          commuteSummary: {
+            savedMode: 'public_transit',
+            effectiveMode: 'public_transit',
+            headline: 'Commute Strategy',
+            exposureVsEmissionsNote: 'Shifting to transit reduces both.',
+            options: [],
+          },
+          periods: [],
+        }),
+      ),
+    });
+  });
 }
 
 test.describe('Phase 2 VAYORA Air Quality Intelligence (E2E & WCAG 2.2 AA)', () => {

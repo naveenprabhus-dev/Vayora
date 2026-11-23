@@ -41,6 +41,9 @@ export const OUTDOOR_ACTIVITY_PATTERNS = [
   'extended_outdoor',
 ] as const;
 
+export type CommuteMode = (typeof COMMUTE_MODES)[number];
+export type OutdoorActivityPattern = (typeof OUTDOOR_ACTIVITY_PATTERNS)[number];
+
 export const VENTILATION_CONTEXTS = [
   'natural_windows',
   'mechanical_hvac',

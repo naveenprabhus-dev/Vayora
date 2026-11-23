@@ -9,10 +9,13 @@ import type {
   ApiResponse,
   AqiScaleId,
   AuthenticatedPrincipal,
+  DailyRoutineResponse,
   HealthStatusPayload,
   HouseholdLifestyleInput,
   HouseholdLifestyleRecord,
   LocationUpdateInput,
+  RoutinesQueryInput,
+  RoutinesRefreshInput,
 } from '@uaqa/contracts';
 import { getPublicWebEnv } from './env.ts';
 
@@ -79,6 +82,24 @@ function buildAirQualityQueryString(query?: AirQualityRequestOptions): string {
   }
   if (query.scale !== undefined) {
     params.set('scale', query.scale);
+  }
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+function buildRoutinesQueryString(query?: RoutinesQueryInput): string {
+  if (!query) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.date) {
+    params.set('date', query.date);
+  }
+  if (query.commuteMode) {
+    params.set('commuteMode', query.commuteMode);
+  }
+  if (query.outdoorActivityPattern) {
+    params.set('outdoorActivityPattern', query.outdoorActivityPattern);
   }
   const serialized = params.toString();
   return serialized ? `?${serialized}` : '';
@@ -166,6 +187,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
     updateAirQualityLocation: (input: LocationUpdateInput) =>
       request<AirQualityLocationUpdateResponse>('/air-quality/location', {
         method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+    getDailyRoutines: (query?: RoutinesQueryInput) =>
+      request<DailyRoutineResponse>(`/routines/daily${buildRoutinesQueryString(query)}`),
+    refreshDailyRoutines: (input: RoutinesRefreshInput = { forceRefresh: true }) =>
+      request<DailyRoutineResponse>('/routines/refresh', {
+        method: 'POST',
         body: JSON.stringify(input),
       }),
   };

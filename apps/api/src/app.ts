@@ -17,6 +17,9 @@ import type {
 import { OpenMeteoAirQualityProvider } from './modules/air-quality/providers/open-meteo.provider.ts';
 import { createHealthRouter } from './modules/health/health.routes.ts';
 import { createHouseholdRouter } from './modules/household/household.routes.ts';
+import { RoutinesCacheRepository } from './modules/routines/routines.cache.ts';
+import { createRoutinesRouter } from './modules/routines/routines.routes.ts';
+import { RoutinesService } from './modules/routines/routines.service.ts';
 import { createSystemRouter } from './modules/system/system.routes.ts';
 import {
   InMemoryHouseholdRepository,
@@ -37,6 +40,7 @@ export interface ApiDependencies {
   readonly airQualityProvider?: AirQualityProvider;
   readonly geocodingProvider?: GeocodingProvider;
   readonly airQualityCacheRepository?: AirQualityCacheRepository;
+  readonly routinesCacheRepository?: RoutinesCacheRepository;
   readonly rateLimitMaxRequests?: number;
 }
 
@@ -79,6 +83,12 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
     staleTtlSeconds: Math.round(config.airQualityStaleTtlMs / 1000),
   });
 
+  const routinesService = new RoutinesService({
+    householdRepository,
+    airQualityService,
+    cacheRepository: deps.routinesCacheRepository ?? new RoutinesCacheRepository(),
+  });
+
   const apiRouter = Router();
   apiRouter.use(attachRequestContext);
   apiRouter.use(requestLogger);
@@ -93,6 +103,10 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
   apiRouter.use(
     '/air-quality',
     createAirQualityRouter({ tokenVerifier, roleResolver, airQualityService }),
+  );
+  apiRouter.use(
+    '/routines',
+    createRoutinesRouter({ tokenVerifier, roleResolver, routinesService }),
   );
   apiRouter.use('/system', createSystemRouter({ tokenVerifier, roleResolver }));
   apiRouter.use(notFoundHandler);

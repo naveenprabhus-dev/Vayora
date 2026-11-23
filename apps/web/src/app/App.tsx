@@ -8,6 +8,7 @@ import { RegisterForm } from '../features/auth/RegisterForm.tsx';
 import { ResetPasswordForm } from '../features/auth/ResetPasswordForm.tsx';
 import { VerifyEmailScreen } from '../features/auth/VerifyEmailScreen.tsx';
 import { AirQualityDashboard } from '../features/air-quality/AirQualityDashboard.tsx';
+import { DailyRoutinesWorkspace } from '../features/routines/DailyRoutinesWorkspace.tsx';
 import { HouseholdOnboardingWizard } from '../features/onboarding/HouseholdOnboardingWizard.tsx';
 import { VerifiedProfileSummary } from '../features/onboarding/VerifiedProfileSummary.tsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
@@ -43,7 +44,7 @@ const TITLE_MAP: Readonly<Record<AppRoute, string>> = {
   'reset-password': 'Reset Password · Urban Air Quality Assistant',
   'verify-email': 'Verify Email · Urban Air Quality Assistant',
   onboarding: 'Household Onboarding · VAYORA',
-  'account-ready': 'Air Quality Intelligence · VAYORA',
+  'account-ready': 'Air Quality & Daily Routines · VAYORA',
 };
 
 function readInitialUrlState(): {
@@ -114,6 +115,7 @@ function UrbanAirQualityAppShell({
   );
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSyncingSession, setIsSyncingSession] = useState(false);
+  const [airQualitySyncToken, setAirQualitySyncToken] = useState<string | undefined>(undefined);
 
   useDocumentTitle(TITLE_MAP[route]);
 
@@ -440,12 +442,40 @@ function UrbanAirQualityAppShell({
               }}
             />
 
+            <nav
+              aria-label="Workspace sections"
+              className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 rounded-xl"
+            >
+              <a
+                href="#air-quality-location-heading"
+                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
+              >
+                Air Quality Intelligence
+              </a>
+              <span aria-hidden="true" className="text-slate-300">
+                /
+              </span>
+              <a
+                href="#daily-routines-heading"
+                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
+              >
+                Low-Emission Daily Routines
+              </a>
+            </nav>
+
             <AirQualityDashboard
               userId={user.uid}
               profile={householdProfile}
               apiClient={apiClient}
               householdStore={householdStore}
               onProfileUpdated={(updated) => setHouseholdProfile(updated)}
+              onTelemetryUpdated={setAirQualitySyncToken}
+            />
+
+            <DailyRoutinesWorkspace
+              profile={householdProfile}
+              apiClient={apiClient}
+              airQualitySyncToken={airQualitySyncToken}
             />
           </div>
         ) : null}
@@ -453,7 +483,7 @@ function UrbanAirQualityAppShell({
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6 text-xs text-slate-600">
-          <p>VAYORA · Urban Air Quality Assistant · Air Quality Intelligence</p>
+          <p>VAYORA · Urban Air Quality Assistant · Air Quality &amp; Daily Routines</p>
           <p>Verified Accounts Only · WCAG 2.2 AA · Open-Meteo CC BY 4.0</p>
         </div>
       </footer>

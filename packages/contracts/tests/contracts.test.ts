@@ -15,6 +15,8 @@ import {
   passwordResetConfirmSchema,
   registrationInputSchema,
   roleHasPermission,
+  routinesQuerySchema,
+  routinesRefreshBodySchema,
 } from '../src/index.ts';
 
 describe('@uaqa/contracts', () => {
@@ -260,6 +262,32 @@ describe('@uaqa/contracts', () => {
           postalPrefix: '<script>',
         }).success,
       ).toBe(false);
+    });
+  });
+
+  describe('Phase 3 daily routine contracts & permissions', () => {
+    it('grants routine read and generate permissions to verified household roles', () => {
+      expect(roleHasPermission('regular_user', 'recommendations:read_own')).toBe(true);
+      expect(roleHasPermission('regular_user', 'recommendations:generate_own')).toBe(true);
+      expect(roleHasPermission('community_coordinator', 'recommendations:read_own')).toBe(true);
+      expect(roleHasPermission('admin', 'recommendations:generate_own')).toBe(true);
+    });
+
+    it('validates routinesQuerySchema and routinesRefreshBodySchema and rejects IDOR/unknown keys', () => {
+      expect(
+        routinesQuerySchema.safeParse({
+          date: '2026-11-22',
+          commuteMode: 'public_transit',
+          outdoorActivityPattern: 'school_run_family',
+        }).success,
+      ).toBe(true);
+
+      expect(routinesQuerySchema.safeParse({ userId: 'uid_other' }).success).toBe(false);
+      expect(routinesQuerySchema.safeParse({ date: '22-11-2026' }).success).toBe(false);
+      expect(routinesQuerySchema.safeParse({ commuteMode: 'helicopter' }).success).toBe(false);
+
+      expect(routinesRefreshBodySchema.safeParse({ forceRefresh: true }).success).toBe(true);
+      expect(routinesRefreshBodySchema.safeParse({ ownerUid: 'uid_other' }).success).toBe(false);
     });
   });
 });
