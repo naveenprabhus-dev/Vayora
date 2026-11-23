@@ -15,8 +15,14 @@ import type {
   GeocodingProvider,
 } from './modules/air-quality/providers/air-quality.provider.interface.ts';
 import { OpenMeteoAirQualityProvider } from './modules/air-quality/providers/open-meteo.provider.ts';
+import { AlternativesCacheRepository } from './modules/alternatives/alternatives.cache.ts';
+import { createAlternativesRouter } from './modules/alternatives/alternatives.routes.ts';
+import { SustainableAlternativesService } from './modules/alternatives/alternatives.service.ts';
 import { createHealthRouter } from './modules/health/health.routes.ts';
 import { createHouseholdRouter } from './modules/household/household.routes.ts';
+import { IndoorCacheRepository } from './modules/indoor/indoor.cache.ts';
+import { createIndoorRouter } from './modules/indoor/indoor.routes.ts';
+import { IndoorAirService } from './modules/indoor/indoor.service.ts';
 import { RoutinesCacheRepository } from './modules/routines/routines.cache.ts';
 import { createRoutinesRouter } from './modules/routines/routines.routes.ts';
 import { RoutinesService } from './modules/routines/routines.service.ts';
@@ -41,6 +47,8 @@ export interface ApiDependencies {
   readonly geocodingProvider?: GeocodingProvider;
   readonly airQualityCacheRepository?: AirQualityCacheRepository;
   readonly routinesCacheRepository?: RoutinesCacheRepository;
+  readonly indoorCacheRepository?: IndoorCacheRepository;
+  readonly alternativesCacheRepository?: AlternativesCacheRepository;
   readonly rateLimitMaxRequests?: number;
 }
 
@@ -89,6 +97,18 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
     cacheRepository: deps.routinesCacheRepository ?? new RoutinesCacheRepository(),
   });
 
+  const indoorAirService = new IndoorAirService({
+    householdRepository,
+    airQualityService,
+    cacheRepository: deps.indoorCacheRepository ?? new IndoorCacheRepository(),
+  });
+
+  const alternativesService = new SustainableAlternativesService({
+    householdRepository,
+    airQualityService,
+    cacheRepository: deps.alternativesCacheRepository ?? new AlternativesCacheRepository(),
+  });
+
   const apiRouter = Router();
   apiRouter.use(attachRequestContext);
   apiRouter.use(requestLogger);
@@ -107,6 +127,14 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
   apiRouter.use(
     '/routines',
     createRoutinesRouter({ tokenVerifier, roleResolver, routinesService }),
+  );
+  apiRouter.use(
+    '/indoor-air',
+    createIndoorRouter({ tokenVerifier, roleResolver, indoorAirService }),
+  );
+  apiRouter.use(
+    '/alternatives',
+    createAlternativesRouter({ tokenVerifier, roleResolver, alternativesService }),
   );
   apiRouter.use('/system', createSystemRouter({ tokenVerifier, roleResolver }));
   apiRouter.use(notFoundHandler);

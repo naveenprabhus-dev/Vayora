@@ -442,6 +442,186 @@ async function setupHarnessApiRoutes(
       ),
     });
   });
+
+  await page.route('**/api/v1/indoor-air/**', async (route) => {
+    const dash = createDashboardPayload({
+      city: activeCity,
+      neighborhood: activeNeighborhood,
+      freshness,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          guidanceId: 'e2e-indoor-stub-id',
+          generatedAt: '2026-11-22T12:00:00Z',
+          cachedResult: false,
+          location: dash.location,
+          overview: {
+            headline: `Indoor Air Quality Assistant (${activeCity})`,
+            summary: 'Tailored indoor air quality guidance based on household settings.',
+            householdSize: 4,
+            householdComposition: ['adults', 'young_children'],
+            ventilationContext: 'filtered_hvac_merv13',
+            hasIndoorAirPurifier: true,
+            heatingType: 'district',
+            primaryZoneType: 'valley_basin',
+            outdoorConditionSummary: 'Outdoor telemetry summary.',
+            sensorStatus: {
+              sensorConnected: false,
+              disclosureStatement:
+                'Indoor air quality is not being measured. These recommendations are based on your household settings, available outdoor air-quality information and general guidance.',
+              evidenceDistinctions: [
+                {
+                  category: 'measured_indoor',
+                  label: 'Measured indoor air quality',
+                  statusLabel: 'Not available (no indoor sensors connected)',
+                  description: 'No indoor sensors connected.',
+                },
+                {
+                  category: 'outdoor_air_quality',
+                  label: 'Outdoor air quality information',
+                  statusLabel: freshness === 'unavailable' ? 'Unavailable' : 'Model forecast',
+                  description: 'Open-Meteo outdoor air model.',
+                },
+                {
+                  category: 'estimated_inferred_indoor',
+                  label: 'Estimated or inferred indoor conditions',
+                  statusLabel: 'Inferred context',
+                  description: 'Inferred from saved setup.',
+                },
+                {
+                  category: 'general_educational_guidance',
+                  label: 'General educational guidance',
+                  statusLabel: 'General clean-air steps',
+                  description: 'Source control guidance.',
+                },
+              ],
+            },
+          },
+          airQualityContext: {
+            usAqi: dash.aqi.usAqi,
+            europeanAqi: dash.aqi.europeanAqi,
+            dominantPollutant: dash.aqi.dominantPollutant,
+            pollutants: dash.pollutants,
+            transparency: dash.transparency,
+          },
+          scenarioContext: {
+            selectedScenario: 'baseline',
+            isSimulation: false,
+            simulationLabel: 'Saved household baseline',
+            scenarioTitle: 'Saved household baseline',
+            scenarioDescription: 'Saved home setup.',
+            scenarioFocusNotes: [],
+            availableScenarios: [
+              { id: 'baseline', label: 'Saved household baseline', shortDescription: 'Baseline.' },
+            ],
+          },
+          ventilationGuidance: {
+            state: freshness === 'unavailable' ? 'insufficient_data' : 'delay_optional_ventilation',
+            stateLabel:
+              freshness === 'unavailable'
+                ? 'Insufficient outdoor data'
+                : 'Delay optional window airing',
+            headline: 'Ventilation Guidance',
+            summary: 'Use indoor filtered airflow when outdoor particulates are elevated.',
+            bestWindowHint: null,
+            windowDisclosure: 'Model forecast timing window.',
+            essentialSafetyReminder: 'Never seal combustion vents or smoke alarms.',
+            constraintsAndTradeoffs: ['Outdoor model estimate only.'],
+            informationCategory: 'estimated_inferred_indoor',
+          },
+          purifierGuidance: {
+            hasPurifier: true,
+            scenarioSimulatedPurifier: false,
+            headline: 'Portable HEPA Purifier Guidance',
+            summary: 'Run unit continuously in occupied spaces.',
+            practicalGuidance: ['Keep doors closed in active bedroom/living area.'],
+            gasAndVocLimitation: 'HEPA filters do not capture carbon monoxide or most gases.',
+            nonPurchaseNote: null,
+            informationCategory: 'general_educational_guidance',
+          },
+          actionPlan: [],
+          pollutionSources: [],
+          provenanceAndSafety: {
+            dataSources: ['Household profile', 'Open-Meteo'],
+            nonMedicalNotice: 'General educational guidance only.',
+            limitationsSummary: 'No indoor sensors.',
+          },
+        }),
+      ),
+    });
+  });
+
+  await page.route('**/api/v1/alternatives/**', async (route) => {
+    const dash = createDashboardPayload({
+      city: activeCity,
+      neighborhood: activeNeighborhood,
+      freshness,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          advisoryId: 'e2e-alt-stub-id',
+          generatedAt: '2026-11-23T09:00:00Z',
+          cachedResult: false,
+          location: dash.location,
+          overview: {
+            headline: `Sustainable Alternatives Advisor (${activeCity})`,
+            summary: 'Tailored household alternatives.',
+            totalCatalogEvaluated: 0,
+            matchedAlternativesCount: 0,
+            countsByCategory: {
+              transportation: 0,
+              household_energy_heating: 0,
+              everyday_activities: 0,
+              consumption_waste: 0,
+            },
+            countsByImpact: {
+              local_emissions: 0,
+              personal_exposure: 0,
+              both_exposure_and_emissions: 0,
+              broader_sustainability: 0,
+            },
+            householdSummary: {
+              householdSize: 4,
+              householdComposition: ['adults', 'young_children'],
+              primaryCommuteMode: 'public_transit',
+              heatingType: 'district',
+              ventilationContext: 'filtered_hvac_merv13',
+              primaryZoneType: 'valley_basin',
+            },
+            outdoorConditionSummary: 'Outdoor telemetry summary.',
+            impactDistinctionLegend: [],
+            activeTransportAqiNote: 'Condition-aware active travel guidance.',
+          },
+          appliedFilters: {
+            category: null,
+            affordability: null,
+            relevance: null,
+            impactType: null,
+            practicality: null,
+          },
+          airQualityContext: {
+            usAqi: dash.aqi.usAqi,
+            europeanAqi: dash.aqi.europeanAqi,
+            dominantPollutant: dash.aqi.dominantPollutant,
+            transparency: dash.transparency,
+          },
+          alternatives: [],
+          featuredComparison: null,
+          provenanceAndDisclosures: {
+            dataSources: ['Household profile', 'Open-Meteo'],
+            methodologicalPrinciples: ['Qualitative only.'],
+            limitationsSummary: 'Conditional on local infrastructure.',
+          },
+        }),
+      ),
+    });
+  });
 }
 
 test.describe('Phase 2 VAYORA Air Quality Intelligence (E2E & WCAG 2.2 AA)', () => {

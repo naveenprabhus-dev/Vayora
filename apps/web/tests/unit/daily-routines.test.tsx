@@ -246,6 +246,11 @@ describe('DailyRoutinesWorkspace Component', () => {
       updateAirQualityLocation: vi.fn(),
       getDailyRoutines: vi.fn(async () => MOCK_ROUTINE_RESPONSE),
       refreshDailyRoutines: vi.fn(async () => MOCK_ROUTINE_RESPONSE),
+      getIndoorAirGuidance: vi.fn(),
+      refreshIndoorAirGuidance: vi.fn(),
+      getSustainableAlternatives: vi.fn(),
+      compareSustainableAlternative: vi.fn(),
+      refreshSustainableAlternatives: vi.fn(),
     };
 
     const { container } = render(

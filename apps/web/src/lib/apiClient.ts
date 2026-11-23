@@ -5,6 +5,10 @@ import type {
   AirQualityHealthResponse,
   AirQualityLocationUpdateResponse,
   AirQualityPollutantsResponse,
+  AlternativeComparisonView,
+  AlternativesCompareQueryInput,
+  AlternativesQueryInput,
+  AlternativesRefreshInput,
   ApiErrorResponse,
   ApiResponse,
   AqiScaleId,
@@ -13,9 +17,13 @@ import type {
   HealthStatusPayload,
   HouseholdLifestyleInput,
   HouseholdLifestyleRecord,
+  IndoorAirGuidanceResponse,
+  IndoorGuidanceQueryInput,
+  IndoorGuidanceRefreshInput,
   LocationUpdateInput,
   RoutinesQueryInput,
   RoutinesRefreshInput,
+  SustainableAlternativesResponse,
 } from '@uaqa/contracts';
 import { getPublicWebEnv } from './env.ts';
 
@@ -103,6 +111,48 @@ function buildRoutinesQueryString(query?: RoutinesQueryInput): string {
   }
   const serialized = params.toString();
   return serialized ? `?${serialized}` : '';
+}
+
+function buildIndoorQueryString(query?: IndoorGuidanceQueryInput): string {
+  if (!query?.scenario) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  params.set('scenario', query.scenario);
+  return `?${params.toString()}`;
+}
+
+function buildAlternativesQueryString(query?: AlternativesQueryInput): string {
+  if (!query) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.category) {
+    params.set('category', query.category);
+  }
+  if (query.affordability) {
+    params.set('affordability', query.affordability);
+  }
+  if (query.relevance) {
+    params.set('relevance', query.relevance);
+  }
+  if (query.impactType) {
+    params.set('impactType', query.impactType);
+  }
+  if (query.practicality) {
+    params.set('practicality', query.practicality);
+  }
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+function buildAlternativesCompareQueryString(query: AlternativesCompareQueryInput): string {
+  const params = new URLSearchParams();
+  params.set('alternativeId', query.alternativeId);
+  if (query.currentOption) {
+    params.set('currentOption', query.currentOption);
+  }
+  return `?${params.toString()}`;
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -193,6 +243,26 @@ export function createApiClient(options: ApiClientOptions = {}) {
       request<DailyRoutineResponse>(`/routines/daily${buildRoutinesQueryString(query)}`),
     refreshDailyRoutines: (input: RoutinesRefreshInput = { forceRefresh: true }) =>
       request<DailyRoutineResponse>('/routines/refresh', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    getIndoorAirGuidance: (query?: IndoorGuidanceQueryInput) =>
+      request<IndoorAirGuidanceResponse>(`/indoor-air/guidance${buildIndoorQueryString(query)}`),
+    refreshIndoorAirGuidance: (input: IndoorGuidanceRefreshInput = { forceRefresh: true }) =>
+      request<IndoorAirGuidanceResponse>('/indoor-air/refresh', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    getSustainableAlternatives: (query?: AlternativesQueryInput) =>
+      request<SustainableAlternativesResponse>(
+        `/alternatives/recommendations${buildAlternativesQueryString(query)}`,
+      ),
+    compareSustainableAlternative: (query: AlternativesCompareQueryInput) =>
+      request<AlternativeComparisonView>(
+        `/alternatives/compare${buildAlternativesCompareQueryString(query)}`,
+      ),
+    refreshSustainableAlternatives: (input: AlternativesRefreshInput = { forceRefresh: true }) =>
+      request<SustainableAlternativesResponse>('/alternatives/refresh', {
         method: 'POST',
         body: JSON.stringify(input),
       }),

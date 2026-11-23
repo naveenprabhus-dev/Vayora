@@ -20,32 +20,32 @@ export const PLANNED_PRODUCT_MODULES: readonly PlannedModuleDefinition[] = [
   {
     id: 'MOD-01-LOW-EMISSION-ROUTINES',
     requirementId: 'REQ-PROD-01',
-    name: 'Air Quality Intelligence & Baseline Routines',
-    targetPhase: 'Phase 2',
+    name: 'Air Quality Intelligence & Low-Emission Daily Routines',
+    targetPhase: 'Phase 2–3',
     summary:
-      'Live Open-Meteo model telemetry, US EPA & EEA AQI interpretation, 6-pollutant breakdown, hourly forecast, and proportionate winter smog precautions.',
+      'Live Open-Meteo model telemetry, US EPA & EEA AQI interpretation, 6-pollutant breakdown, time-of-day routine scheduling, and exposure-vs-emission clarity.',
   },
   {
     id: 'MOD-02-INDOOR-AIR-QUALITY',
     requirementId: 'REQ-PROD-02',
-    name: 'Indoor Air Quality Guidance',
-    targetPhase: 'Phase 3',
+    name: 'Indoor Air Quality Assistant',
+    targetPhase: 'Phase 4',
     summary:
-      'Practical ventilation timing, filtration upkeep, and indoor particulate reduction steps matched to outdoor AQI.',
+      'No-sensor disclosure, 4-category evidence distinction, outdoor-informed ventilation states, HEPA particle-only limits, scenario explorer, and 7 indoor pollution source guides.',
   },
   {
     id: 'MOD-03-SUSTAINABLE-ALTERNATIVES',
     requirementId: 'REQ-PROD-03',
     name: 'Sustainable Alternatives Advisor',
-    targetPhase: 'Phase 3',
+    targetPhase: 'Phase 5',
     summary:
-      'Actionable lower-emission alternatives for daily transport, cooking, and home heating choices.',
+      'Personalized transport, heating, everyday habit, and waste alternatives with 4-way exposure/emissions/broader sustainability distinction, interactive comparison, and public-health citations.',
   },
   {
     id: 'MOD-04-PERSONALIZED-ADVISORY',
     requirementId: 'REQ-PROD-04',
-    name: 'Location & Lifestyle Personalization',
-    targetPhase: 'Phase 4',
+    name: 'GenAI Location & Lifestyle Personalization',
+    targetPhase: 'Phase 6 (Deferred)',
     summary:
       'Live AQI integration with graceful fallback guidance and Gemini-orchestrated household personalization.',
   },
@@ -53,7 +53,7 @@ export const PLANNED_PRODUCT_MODULES: readonly PlannedModuleDefinition[] = [
     id: 'MOD-05-IMPACT-EXPLANATIONS',
     requirementId: 'REQ-PROD-05',
     name: 'Direct Impact Explanations',
-    targetPhase: 'Phase 5',
+    targetPhase: 'Phase 6+ (Deferred)',
     summary:
       'Clear, evidence-grounded explanations of how each recommended choice reduces exposure and local emissions.',
   },

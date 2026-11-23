@@ -13,7 +13,7 @@ import {
   verifyPasswordResetCode,
   type User,
 } from 'firebase/auth';
-import { getFirebaseAuth } from './firebase.ts';
+import { getFirebaseAuth, isFirebaseClientConfigured } from './firebase.ts';
 
 export interface AuthUserSnapshot {
   readonly uid: string;
@@ -133,6 +133,10 @@ export function mapFirebaseAuthError(
 
 export class FirebaseAuthService implements AuthService {
   public subscribeAuthState(onChange: (user: AuthUserSnapshot | null) => void): () => void {
+    if (!isFirebaseClientConfigured()) {
+      onChange(null);
+      return () => undefined;
+    }
     const auth = getFirebaseAuth();
     return onAuthStateChanged(auth, (user) => {
       onChange(user ? toSnapshot(user) : null);
@@ -140,6 +144,12 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async register(input: RegistrationInput): Promise<AuthUserSnapshot> {
+    if (!isFirebaseClientConfigured()) {
+      throw new AuthServiceError(
+        'auth/configuration-missing',
+        'Authentication service is not configured in this environment.',
+      );
+    }
     const auth = getFirebaseAuth();
     try {
       const credential = await createUserWithEmailAndPassword(auth, input.email, input.password);
@@ -157,6 +167,12 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async login(input: LoginInput): Promise<AuthUserSnapshot> {
+    if (!isFirebaseClientConfigured()) {
+      throw new AuthServiceError(
+        'auth/configuration-missing',
+        'Authentication service is not configured in this environment.',
+      );
+    }
     const auth = getFirebaseAuth();
     try {
       const credential = await signInWithEmailAndPassword(auth, input.email, input.password);
@@ -168,6 +184,9 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async logout(): Promise<void> {
+    if (!isFirebaseClientConfigured()) {
+      return;
+    }
     const auth = getFirebaseAuth();
     await signOut(auth);
   }
@@ -186,6 +205,9 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async refreshCurrentUser(): Promise<AuthUserSnapshot | null> {
+    if (!isFirebaseClientConfigured()) {
+      return null;
+    }
     const auth = getFirebaseAuth();
     const user = auth.currentUser;
     if (!user) {
@@ -200,6 +222,9 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async getFreshIdToken(forceRefresh = false): Promise<string | null> {
+    if (!isFirebaseClientConfigured()) {
+      return null;
+    }
     const auth = getFirebaseAuth();
     const user = auth.currentUser;
     if (!user) {
@@ -213,6 +238,12 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async sendPasswordReset(email: string): Promise<void> {
+    if (!isFirebaseClientConfigured()) {
+      throw new AuthServiceError(
+        'auth/configuration-missing',
+        'Authentication service is not configured in this environment.',
+      );
+    }
     const auth = getFirebaseAuth();
     try {
       await sendPasswordResetEmail(auth, email);
@@ -227,6 +258,12 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async verifyResetCode(oobCode: string): Promise<void> {
+    if (!isFirebaseClientConfigured()) {
+      throw new AuthServiceError(
+        'auth/invalid-action-code',
+        'This password reset link is invalid or authentication is not configured in this environment.',
+      );
+    }
     const auth = getFirebaseAuth();
     try {
       await verifyPasswordResetCode(auth, oobCode);
@@ -236,6 +273,12 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async confirmReset(oobCode: string, newPassword: string): Promise<void> {
+    if (!isFirebaseClientConfigured()) {
+      throw new AuthServiceError(
+        'auth/configuration-missing',
+        'Authentication service is not configured in this environment.',
+      );
+    }
     const auth = getFirebaseAuth();
     try {
       await confirmPasswordReset(auth, oobCode, newPassword);
@@ -245,6 +288,12 @@ export class FirebaseAuthService implements AuthService {
   }
 
   public async applyEmailVerificationCode(oobCode: string): Promise<void> {
+    if (!isFirebaseClientConfigured()) {
+      throw new AuthServiceError(
+        'auth/configuration-missing',
+        'Authentication service is not configured in this environment.',
+      );
+    }
     const auth = getFirebaseAuth();
     try {
       await applyActionCode(auth, oobCode);

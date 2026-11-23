@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   airQualityQuerySchema,
+  alternativesCompareQuerySchema,
+  alternativesQuerySchema,
+  alternativesRefreshBodySchema,
   apiErrorResponseSchema,
   authenticatedPrincipalSchema,
   coordinatesSchema,
@@ -10,6 +13,8 @@ import {
   forgotPasswordInputSchema,
   healthStatusPayloadSchema,
   householdLifestyleInputSchema,
+  indoorGuidanceQuerySchema,
+  indoorGuidanceRefreshBodySchema,
   locationUpdateSchema,
   loginInputSchema,
   passwordResetConfirmSchema,
@@ -288,6 +293,71 @@ describe('@uaqa/contracts', () => {
 
       expect(routinesRefreshBodySchema.safeParse({ forceRefresh: true }).success).toBe(true);
       expect(routinesRefreshBodySchema.safeParse({ ownerUid: 'uid_other' }).success).toBe(false);
+    });
+  });
+
+  describe('Phase 4 indoor air quality assistant contracts', () => {
+    it('validates indoorGuidanceQuerySchema and indoorGuidanceRefreshBodySchema strictly', () => {
+      expect(indoorGuidanceQuerySchema.safeParse({}).success).toBe(true);
+      expect(indoorGuidanceQuerySchema.safeParse({ scenario: 'cooking' }).success).toBe(true);
+      expect(
+        indoorGuidanceQuerySchema.safeParse({ scenario: 'elevated_outdoor_pollution' }).success,
+      ).toBe(true);
+
+      expect(indoorGuidanceQuerySchema.safeParse({ scenario: 'invalid_scenario' }).success).toBe(
+        false,
+      );
+      expect(indoorGuidanceQuerySchema.safeParse({ userId: 'uid_other' }).success).toBe(false);
+
+      expect(
+        indoorGuidanceRefreshBodySchema.safeParse({
+          forceRefresh: true,
+          scenario: 'operating_purifier',
+        }).success,
+      ).toBe(true);
+      expect(indoorGuidanceRefreshBodySchema.safeParse({ ownerUid: 'uid_other' }).success).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('Phase 5 sustainable alternatives contracts', () => {
+    it('validates alternativesQuerySchema, alternativesCompareQuerySchema, and alternativesRefreshBodySchema', () => {
+      expect(alternativesQuerySchema.safeParse({}).success).toBe(true);
+      expect(
+        alternativesQuerySchema.safeParse({
+          category: 'transportation',
+          affordability: 'zero_cost',
+          relevance: 'outdoor',
+          impactType: 'both_exposure_and_emissions',
+          practicality: 'recommended',
+        }).success,
+      ).toBe(true);
+
+      expect(alternativesQuerySchema.safeParse({ category: 'space_travel' }).success).toBe(false);
+      expect(alternativesQuerySchema.safeParse({ userId: 'uid_other' }).success).toBe(false);
+
+      expect(
+        alternativesCompareQuerySchema.safeParse({
+          alternativeId: 'transport-public-transit',
+          currentOption: 'solo_gas_vehicle',
+        }).success,
+      ).toBe(true);
+      expect(
+        alternativesCompareQuerySchema.safeParse({
+          alternativeId: '../secret',
+        }).success,
+      ).toBe(false);
+
+      expect(
+        alternativesRefreshBodySchema.safeParse({
+          forceRefresh: true,
+          category: 'consumption_waste',
+        }).success,
+      ).toBe(true);
+      expect(alternativesRefreshBodySchema.safeParse({ ownerUid: 'uid_other' }).success).toBe(
+        false,
+      );
     });
   });
 });

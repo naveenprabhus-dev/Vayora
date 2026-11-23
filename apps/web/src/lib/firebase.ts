@@ -72,6 +72,11 @@ function resolveFirebaseClientConfig() {
   };
 }
 
+export function isFirebaseClientConfigured(): boolean {
+  const cfg = resolveFirebaseClientConfig();
+  return cfg.apiKey.length > 0 && cfg.projectId.length > 0 && cfg.appId.length > 0;
+}
+
 export function getFirebaseApp(): FirebaseApp {
   if (cachedApp) {
     return cachedApp;
@@ -109,7 +114,7 @@ export function getFirestoreDb(): Firestore {
 }
 
 export async function testFirestoreConnection(): Promise<void> {
-  if (connectionCheckRan || typeof window === 'undefined') {
+  if (connectionCheckRan || typeof window === 'undefined' || !isFirebaseClientConfigured()) {
     return;
   }
   connectionCheckRan = true;

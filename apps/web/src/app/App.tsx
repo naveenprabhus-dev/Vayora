@@ -8,6 +8,8 @@ import { RegisterForm } from '../features/auth/RegisterForm.tsx';
 import { ResetPasswordForm } from '../features/auth/ResetPasswordForm.tsx';
 import { VerifyEmailScreen } from '../features/auth/VerifyEmailScreen.tsx';
 import { AirQualityDashboard } from '../features/air-quality/AirQualityDashboard.tsx';
+import { SustainableAlternativesWorkspace } from '../features/alternatives/SustainableAlternativesWorkspace.tsx';
+import { IndoorAirAssistantWorkspace } from '../features/indoor/IndoorAirAssistantWorkspace.tsx';
 import { DailyRoutinesWorkspace } from '../features/routines/DailyRoutinesWorkspace.tsx';
 import { HouseholdOnboardingWizard } from '../features/onboarding/HouseholdOnboardingWizard.tsx';
 import { VerifiedProfileSummary } from '../features/onboarding/VerifiedProfileSummary.tsx';
@@ -44,7 +46,7 @@ const TITLE_MAP: Readonly<Record<AppRoute, string>> = {
   'reset-password': 'Reset Password · Urban Air Quality Assistant',
   'verify-email': 'Verify Email · Urban Air Quality Assistant',
   onboarding: 'Household Onboarding · VAYORA',
-  'account-ready': 'Air Quality & Daily Routines · VAYORA',
+  'account-ready': 'Air Quality, Routines, Indoor & Alternatives · VAYORA',
 };
 
 function readInitialUrlState(): {
@@ -461,6 +463,24 @@ function UrbanAirQualityAppShell({
               >
                 Low-Emission Daily Routines
               </a>
+              <span aria-hidden="true" className="text-slate-300">
+                /
+              </span>
+              <a
+                href="#indoor-air-heading"
+                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
+              >
+                Indoor Air Quality Assistant
+              </a>
+              <span aria-hidden="true" className="text-slate-300">
+                /
+              </span>
+              <a
+                href="#sustainable-alternatives-heading"
+                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
+              >
+                Sustainable Alternatives
+              </a>
             </nav>
 
             <AirQualityDashboard
@@ -477,13 +497,28 @@ function UrbanAirQualityAppShell({
               apiClient={apiClient}
               airQualitySyncToken={airQualitySyncToken}
             />
+
+            <IndoorAirAssistantWorkspace
+              profile={householdProfile}
+              apiClient={apiClient}
+              airQualitySyncToken={airQualitySyncToken}
+            />
+
+            <SustainableAlternativesWorkspace
+              profile={householdProfile}
+              apiClient={apiClient}
+              airQualitySyncToken={airQualitySyncToken}
+            />
           </div>
         ) : null}
       </main>
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6 text-xs text-slate-600">
-          <p>VAYORA · Urban Air Quality Assistant · Air Quality &amp; Daily Routines</p>
+          <p>
+            VAYORA · Urban Air Quality Assistant · Intelligence, Routines, Indoor Air &amp;
+            Alternatives
+          </p>
           <p>Verified Accounts Only · WCAG 2.2 AA · Open-Meteo CC BY 4.0</p>
         </div>
       </footer>

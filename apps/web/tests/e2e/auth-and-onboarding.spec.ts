@@ -1,5 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+
+const HAS_FIREBASE_CLIENT_CONFIG =
+  fs.existsSync(path.resolve(process.cwd(), 'firebase-applet-config.json')) ||
+  Boolean(process.env.VITE_FIREBASE_API_KEY);
 
 test.describe('Phase 1 Auth Flows, Validation & Accessibility (Playwright)', () => {
   test('validates registration form, updates password strength meter, toggles password visibility, and passes WCAG 2.2 AA', async ({
@@ -66,9 +72,15 @@ test.describe('Phase 1 Auth Flows, Validation & Accessibility (Playwright)', () 
     await page.getByLabel(/Email address/).fill('nobody@household.org');
     await page.getByRole('button', { name: 'Send reset instructions' }).click();
 
-    await expect(page.getByRole('status')).toContainText(
-      'If an account exists for that email address, password reset instructions have been sent.',
-    );
+    if (HAS_FIREBASE_CLIENT_CONFIG) {
+      await expect(page.getByRole('status')).toContainText(
+        'If an account exists for that email address, password reset instructions have been sent.',
+      );
+    } else {
+      await expect(page.getByRole('alert')).toContainText(
+        /Authentication service is not configured/i,
+      );
+    }
 
     const forgotResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

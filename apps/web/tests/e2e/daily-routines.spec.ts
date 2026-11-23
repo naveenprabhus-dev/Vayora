@@ -289,6 +289,140 @@ async function setupRoutinesE2ERoutes(page: Page) {
       ),
     });
   });
+
+  await page.route('**/api/v1/indoor-air/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          guidanceId: 'e2e-indoor-stub-id',
+          generatedAt: '2026-11-22T12:00:00Z',
+          cachedResult: false,
+          location: MOCK_ROUTINE_PAYLOAD.location,
+          overview: {
+            headline: 'Indoor Air Quality Assistant (Krakow)',
+            summary: 'Tailored indoor air guidance.',
+            householdSize: 4,
+            householdComposition: ['adults', 'young_children'],
+            ventilationContext: 'filtered_hvac_merv13',
+            hasIndoorAirPurifier: true,
+            heatingType: 'district',
+            primaryZoneType: 'valley_basin',
+            outdoorConditionSummary: 'Elevated outdoor particulates.',
+            sensorStatus: {
+              sensorConnected: false,
+              disclosureStatement:
+                'Indoor air quality is not being measured. These recommendations are based on your household settings, available outdoor air-quality information and general guidance.',
+              evidenceDistinctions: [],
+            },
+          },
+          airQualityContext: MOCK_ROUTINE_PAYLOAD.airQualityContext,
+          scenarioContext: {
+            selectedScenario: 'baseline',
+            isSimulation: false,
+            simulationLabel: 'Saved household baseline',
+            scenarioTitle: 'Saved household baseline',
+            scenarioDescription: 'Saved home setup.',
+            scenarioFocusNotes: [],
+            availableScenarios: [],
+          },
+          ventilationGuidance: {
+            state: 'delay_optional_ventilation',
+            stateLabel: 'Delay optional window airing',
+            headline: 'Delay optional window airing',
+            summary: 'Use indoor filtered airflow.',
+            bestWindowHint: null,
+            windowDisclosure: 'Model forecast timing window.',
+            essentialSafetyReminder: 'Never seal combustion vents or smoke alarms.',
+            constraintsAndTradeoffs: ['Outdoor model estimate only.'],
+            informationCategory: 'estimated_inferred_indoor',
+          },
+          purifierGuidance: {
+            hasPurifier: true,
+            scenarioSimulatedPurifier: false,
+            headline: 'Portable HEPA Purifier Guidance',
+            summary: 'Run HEPA unit.',
+            practicalGuidance: ['Close doors to active rooms.'],
+            gasAndVocLimitation: 'HEPA filters do not capture carbon monoxide or most gases.',
+            nonPurchaseNote: null,
+            informationCategory: 'general_educational_guidance',
+          },
+          actionPlan: [],
+          pollutionSources: [],
+          provenanceAndSafety: {
+            dataSources: ['Household profile', 'Open-Meteo'],
+            nonMedicalNotice: 'General educational guidance only.',
+            limitationsSummary: 'No indoor sensors.',
+          },
+        }),
+      ),
+    });
+  });
+
+  await page.route('**/api/v1/alternatives/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          advisoryId: 'e2e-alt-stub-id',
+          generatedAt: '2026-11-23T09:00:00Z',
+          cachedResult: false,
+          location: MOCK_ROUTINE_PAYLOAD.location,
+          overview: {
+            headline: 'Sustainable Alternatives Advisor (Krakow)',
+            summary: 'Tailored household alternatives.',
+            totalCatalogEvaluated: 0,
+            matchedAlternativesCount: 0,
+            countsByCategory: {
+              transportation: 0,
+              household_energy_heating: 0,
+              everyday_activities: 0,
+              consumption_waste: 0,
+            },
+            countsByImpact: {
+              local_emissions: 0,
+              personal_exposure: 0,
+              both_exposure_and_emissions: 0,
+              broader_sustainability: 0,
+            },
+            householdSummary: {
+              householdSize: 4,
+              householdComposition: ['adults', 'young_children'],
+              primaryCommuteMode: 'public_transit',
+              heatingType: 'district',
+              ventilationContext: 'filtered_hvac_merv13',
+              primaryZoneType: 'valley_basin',
+            },
+            outdoorConditionSummary: 'Outdoor telemetry summary.',
+            impactDistinctionLegend: [],
+            activeTransportAqiNote: 'Condition-aware active travel guidance.',
+          },
+          appliedFilters: {
+            category: null,
+            affordability: null,
+            relevance: null,
+            impactType: null,
+            practicality: null,
+          },
+          airQualityContext: {
+            usAqi: MOCK_ROUTINE_PAYLOAD.airQualityContext.usAqi,
+            europeanAqi: MOCK_ROUTINE_PAYLOAD.airQualityContext.europeanAqi,
+            dominantPollutant: MOCK_ROUTINE_PAYLOAD.airQualityContext.dominantPollutant,
+            transparency: MOCK_ROUTINE_PAYLOAD.airQualityContext.transparency,
+          },
+          alternatives: [],
+          featuredComparison: null,
+          provenanceAndDisclosures: {
+            dataSources: ['Household profile', 'Open-Meteo'],
+            methodologicalPrinciples: ['Qualitative only.'],
+            limitationsSummary: 'Conditional on local infrastructure.',
+          },
+        }),
+      ),
+    });
+  });
 }
 
 test.describe('Phase 3 Low-Emission Daily Routines (E2E & WCAG 2.2 AA)', () => {
