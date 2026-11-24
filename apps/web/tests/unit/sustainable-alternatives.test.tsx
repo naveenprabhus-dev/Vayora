@@ -416,6 +416,11 @@ function buildMockClient(overrides?: Partial<WebApiClient>): WebApiClient {
       return createComparison(found, query.currentOption);
     }),
     refreshSustainableAlternatives: vi.fn(async () => createMockAlternativesResponse()),
+    getPersonalizedBriefing: vi.fn(),
+    explainRecommendation: vi.fn(),
+    compareChoicesExplanation: vi.fn(),
+    refreshPersonalizedAdvisory: vi.fn(),
+    getAdvisoryMetrics: vi.fn(),
     ...overrides,
   };
 }

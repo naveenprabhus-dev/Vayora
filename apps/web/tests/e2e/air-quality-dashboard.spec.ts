@@ -622,6 +622,76 @@ async function setupHarnessApiRoutes(
       ),
     });
   });
+
+  await page.route('**/api/v1/advisory/**', async (route) => {
+    const dash = createDashboardPayload({
+      city: activeCity,
+      neighborhood: activeNeighborhood,
+      freshness,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          briefingId: 'e2e-briefing-stub',
+          location: dash.location,
+          householdSummary: {
+            city: activeCity,
+            neighborhood: activeNeighborhood,
+            primaryZoneType: 'valley_basin',
+            householdSize: 4,
+            householdComposition: ['adults', 'young_children'],
+            primaryCommuteMode: 'public_transit',
+            outdoorActivityPattern: 'school_run_family',
+            ventilationContext: 'filtered_hvac_merv13',
+            hasIndoorAirPurifier: true,
+            heatingType: 'district',
+            preferredGuidanceFocus: 'balanced',
+          },
+          airQualitySnapshot: {
+            freshnessStatus: 'fresh',
+            availabilityStatus: 'available',
+            observationTimestamp: '2026-11-23T09:00:00Z',
+            usAqiValue: 74,
+            usAqiCategory: 'Moderate',
+            europeanAqiValue: 48,
+            europeanAqiCategory: 'Moderate',
+            dominantPollutantCode: 'pm2_5',
+            dominantPollutantLabel: 'PM2.5',
+            isHighOrWorse: false,
+            isElevatedOrWorse: false,
+            isCyclingNotAdvised: false,
+            bestForecastWindowLabel: null,
+            aqSummary: 'Advisory summary.',
+            activeScaleNote: 'dual_epa_eea',
+          },
+          headline: `Daily briefing (${activeCity})`,
+          summary: 'Grounded summary.',
+          outdoorInfluenceSummary: 'Outdoor note.',
+          indoorContextSummary: 'Indoor context note.',
+          priorityActions: [],
+          cautionsAndLimitations: 'Educational guidance only.',
+          verifiedEvidence: [],
+          availableRecommendations: [],
+          generationMeta: {
+            generationMode: 'gemini',
+            model: 'gemini-4-hydrogen',
+            fallbackReason: null,
+            aiDisclosure: 'AI-generated explanation grounded in VAYORA deterministic rules.',
+            nonMedicalNotice: 'Educational guidance only.',
+            freshnessDisclosure: 'fresh',
+            freshnessMessage: 'Fresh model data.',
+            contextFingerprint: 'e2e-fp',
+            cachedResult: false,
+            generatedAt: '2026-11-23T09:00:00Z',
+            latencyMs: 30,
+            focus: 'balanced',
+          },
+        }),
+      ),
+    });
+  });
 }
 
 test.describe('Phase 2 VAYORA Air Quality Intelligence (E2E & WCAG 2.2 AA)', () => {

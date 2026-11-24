@@ -8,6 +8,7 @@ import { RegisterForm } from '../features/auth/RegisterForm.tsx';
 import { ResetPasswordForm } from '../features/auth/ResetPasswordForm.tsx';
 import { VerifyEmailScreen } from '../features/auth/VerifyEmailScreen.tsx';
 import { AirQualityDashboard } from '../features/air-quality/AirQualityDashboard.tsx';
+import { PersonalizedAdvisoryWorkspace } from '../features/advisory/PersonalizedAdvisoryWorkspace.tsx';
 import { SustainableAlternativesWorkspace } from '../features/alternatives/SustainableAlternativesWorkspace.tsx';
 import { IndoorAirAssistantWorkspace } from '../features/indoor/IndoorAirAssistantWorkspace.tsx';
 import { DailyRoutinesWorkspace } from '../features/routines/DailyRoutinesWorkspace.tsx';
@@ -481,7 +482,22 @@ function UrbanAirQualityAppShell({
               >
                 Sustainable Alternatives
               </a>
+              <span aria-hidden="true" className="text-slate-300">
+                /
+              </span>
+              <a
+                href="#personalized-advisory-heading"
+                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
+              >
+                Personalized Briefing
+              </a>
             </nav>
+
+            <PersonalizedAdvisoryWorkspace
+              profile={householdProfile}
+              apiClient={apiClient}
+              airQualitySyncToken={airQualitySyncToken}
+            />
 
             <AirQualityDashboard
               userId={user.uid}

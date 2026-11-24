@@ -367,6 +367,11 @@ function buildMockClient(overrides?: Partial<WebApiClient>): WebApiClient {
     getSustainableAlternatives: vi.fn(),
     compareSustainableAlternative: vi.fn(),
     refreshSustainableAlternatives: vi.fn(),
+    getPersonalizedBriefing: vi.fn(),
+    explainRecommendation: vi.fn(),
+    compareChoicesExplanation: vi.fn(),
+    refreshPersonalizedAdvisory: vi.fn(),
+    getAdvisoryMetrics: vi.fn(),
     ...overrides,
   };
 }

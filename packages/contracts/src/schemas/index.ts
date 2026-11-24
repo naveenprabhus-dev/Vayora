@@ -1,3 +1,4 @@
+export * from './advisory.schema.ts';
 export * from './air-quality.schema.ts';
 export * from './alternatives.schema.ts';
 export * from './api.schema.ts';

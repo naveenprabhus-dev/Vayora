@@ -423,6 +423,71 @@ async function setupRoutinesE2ERoutes(page: Page) {
       ),
     });
   });
+
+  await page.route('**/api/v1/advisory/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          briefingId: 'e2e-briefing-stub',
+          location: MOCK_ROUTINE_PAYLOAD.location,
+          householdSummary: {
+            city: 'Krakow',
+            neighborhood: 'Krowodrza',
+            primaryZoneType: 'valley_basin',
+            householdSize: 4,
+            householdComposition: ['adults', 'young_children'],
+            primaryCommuteMode: 'gas_vehicle',
+            outdoorActivityPattern: 'school_run_family',
+            ventilationContext: 'filtered_hvac_merv13',
+            hasIndoorAirPurifier: true,
+            heatingType: 'district',
+            preferredGuidanceFocus: 'balanced',
+          },
+          airQualitySnapshot: {
+            freshnessStatus: 'fresh',
+            availabilityStatus: 'available',
+            observationTimestamp: '2026-11-23T09:00:00Z',
+            usAqiValue: 74,
+            usAqiCategory: 'Moderate',
+            europeanAqiValue: 48,
+            europeanAqiCategory: 'Moderate',
+            dominantPollutantCode: 'pm2_5',
+            dominantPollutantLabel: 'PM2.5',
+            isHighOrWorse: false,
+            isElevatedOrWorse: false,
+            isCyclingNotAdvised: false,
+            bestForecastWindowLabel: null,
+            aqSummary: 'Advisory summary.',
+            activeScaleNote: 'dual_epa_eea',
+          },
+          headline: 'Daily briefing (Krakow)',
+          summary: 'Grounded summary.',
+          outdoorInfluenceSummary: 'Outdoor note.',
+          indoorContextSummary: 'Indoor context note.',
+          priorityActions: [],
+          cautionsAndLimitations: 'Educational guidance only.',
+          verifiedEvidence: [],
+          availableRecommendations: [],
+          generationMeta: {
+            generationMode: 'gemini',
+            model: 'gemini-4-hydrogen',
+            fallbackReason: null,
+            aiDisclosure: 'AI-generated explanation grounded in VAYORA deterministic rules.',
+            nonMedicalNotice: 'Educational guidance only.',
+            freshnessDisclosure: 'fresh',
+            freshnessMessage: 'Fresh model data.',
+            contextFingerprint: 'e2e-fp',
+            cachedResult: false,
+            generatedAt: '2026-11-23T09:00:00Z',
+            latencyMs: 30,
+            focus: 'balanced',
+          },
+        }),
+      ),
+    });
+  });
 }
 
 test.describe('Phase 3 Low-Emission Daily Routines (E2E & WCAG 2.2 AA)', () => {
@@ -453,7 +518,10 @@ test.describe('Phase 3 Low-Emission Daily Routines (E2E & WCAG 2.2 AA)', () => {
     await expect(page.getByTestId('routine-card-morning-school-family-routine')).toBeVisible();
 
     // Test impact filtering
-    await page.getByRole('button', { name: 'Personal exposure' }).click();
+    await page
+      .getByTestId('daily-routines-workspace')
+      .getByRole('button', { name: 'Personal exposure', exact: true })
+      .click();
     await expect(page.getByTestId('routine-card-morning-school-family-routine')).toBeVisible();
 
     // Refresh routines

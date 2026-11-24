@@ -15,6 +15,10 @@ import type {
   GeocodingProvider,
 } from './modules/air-quality/providers/air-quality.provider.interface.ts';
 import { OpenMeteoAirQualityProvider } from './modules/air-quality/providers/open-meteo.provider.ts';
+import { AdvisoryCacheRepository } from './modules/advisory/advisory.cache.ts';
+import { AdvisoryMetricsTracker } from './modules/advisory/advisory.metrics.ts';
+import { createAdvisoryRouter } from './modules/advisory/advisory.routes.ts';
+import { AdvisoryService } from './modules/advisory/advisory.service.ts';
 import { AlternativesCacheRepository } from './modules/alternatives/alternatives.cache.ts';
 import { createAlternativesRouter } from './modules/alternatives/alternatives.routes.ts';
 import { SustainableAlternativesService } from './modules/alternatives/alternatives.service.ts';
@@ -31,6 +35,10 @@ import {
   InMemoryHouseholdRepository,
   type HouseholdRepository,
 } from './repositories/household.repository.ts';
+import {
+  GoogleGenAIAdvisoryClient,
+  type GeminiAdvisoryClient,
+} from './services/ai/geminiClient.ts';
 import {
   FirebaseAdminTokenVerifier,
   ServerConfiguredRoleResolver,
@@ -49,6 +57,11 @@ export interface ApiDependencies {
   readonly routinesCacheRepository?: RoutinesCacheRepository;
   readonly indoorCacheRepository?: IndoorCacheRepository;
   readonly alternativesCacheRepository?: AlternativesCacheRepository;
+  readonly geminiClient?: GeminiAdvisoryClient;
+  readonly advisoryCacheRepository?: AdvisoryCacheRepository;
+  readonly advisoryMetricsTracker?: AdvisoryMetricsTracker;
+  readonly advisoryTimeoutMs?: number;
+  readonly advisoryRateLimitMaxRequests?: number;
   readonly rateLimitMaxRequests?: number;
 }
 
@@ -109,6 +122,18 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
     cacheRepository: deps.alternativesCacheRepository ?? new AlternativesCacheRepository(),
   });
 
+  const geminiClient = deps.geminiClient ?? new GoogleGenAIAdvisoryClient(config);
+  const advisoryService = new AdvisoryService({
+    householdRepository,
+    routinesService,
+    indoorAirService,
+    alternativesService,
+    geminiClient,
+    cacheRepository: deps.advisoryCacheRepository ?? new AdvisoryCacheRepository(),
+    metricsTracker: deps.advisoryMetricsTracker ?? new AdvisoryMetricsTracker(),
+    ...(deps.advisoryTimeoutMs !== undefined ? { timeoutMs: deps.advisoryTimeoutMs } : {}),
+  });
+
   const apiRouter = Router();
   apiRouter.use(attachRequestContext);
   apiRouter.use(requestLogger);
@@ -135,6 +160,18 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
   apiRouter.use(
     '/alternatives',
     createAlternativesRouter({ tokenVerifier, roleResolver, alternativesService }),
+  );
+  apiRouter.use(
+    '/advisory',
+    createAdvisoryRouter({
+      config,
+      tokenVerifier,
+      roleResolver,
+      advisoryService,
+      ...(deps.advisoryRateLimitMaxRequests !== undefined
+        ? { rateLimitMaxRequests: deps.advisoryRateLimitMaxRequests }
+        : {}),
+    }),
   );
   apiRouter.use('/system', createSystemRouter({ tokenVerifier, roleResolver }));
   apiRouter.use(notFoundHandler);

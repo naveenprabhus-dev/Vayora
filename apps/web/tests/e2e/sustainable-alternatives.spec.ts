@@ -626,6 +626,71 @@ async function setupAlternativesE2ERoutes(
       ),
     });
   });
+
+  await page.route('**/api/v1/advisory/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        buildApiEnvelope({
+          briefingId: 'e2e-briefing-stub',
+          location: altPayload.location,
+          householdSummary: {
+            city: 'Krakow',
+            neighborhood: 'Krowodrza',
+            primaryZoneType: 'valley_basin',
+            householdSize: 4,
+            householdComposition: ['adults', 'young_children'],
+            primaryCommuteMode: 'gas_vehicle',
+            outdoorActivityPattern: 'school_run_family',
+            ventilationContext: 'natural_windows',
+            hasIndoorAirPurifier: false,
+            heatingType: 'solid_fuel',
+            preferredGuidanceFocus: 'balanced',
+          },
+          airQualitySnapshot: {
+            freshnessStatus: 'fresh',
+            availabilityStatus: 'available',
+            observationTimestamp: '2026-11-23T09:00:00Z',
+            usAqiValue: 182,
+            usAqiCategory: 'Unhealthy',
+            europeanAqiValue: 88,
+            europeanAqiCategory: 'Poor',
+            dominantPollutantCode: 'pm2_5',
+            dominantPollutantLabel: 'PM2.5',
+            isHighOrWorse: true,
+            isElevatedOrWorse: true,
+            isCyclingNotAdvised: true,
+            bestForecastWindowLabel: null,
+            aqSummary: 'Advisory summary.',
+            activeScaleNote: 'dual_epa_eea',
+          },
+          headline: 'Daily briefing (Krakow)',
+          summary: 'Grounded summary.',
+          outdoorInfluenceSummary: 'Outdoor note.',
+          indoorContextSummary: 'Indoor context note.',
+          priorityActions: [],
+          cautionsAndLimitations: 'Educational guidance only.',
+          verifiedEvidence: [],
+          availableRecommendations: [],
+          generationMeta: {
+            generationMode: 'gemini',
+            model: 'gemini-4-hydrogen',
+            fallbackReason: null,
+            aiDisclosure: 'AI-generated explanation grounded in VAYORA deterministic rules.',
+            nonMedicalNotice: 'Educational guidance only.',
+            freshnessDisclosure: 'fresh',
+            freshnessMessage: 'Fresh model data.',
+            contextFingerprint: 'e2e-fp',
+            cachedResult: false,
+            generatedAt: '2026-11-23T09:00:00Z',
+            latencyMs: 30,
+            focus: 'balanced',
+          },
+        }),
+      ),
+    });
+  });
 }
 
 test.describe('Phase 5 Sustainable Alternatives Advisor (E2E & WCAG 2.2 AA)', () => {

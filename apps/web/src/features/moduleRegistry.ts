@@ -45,16 +45,16 @@ export const PLANNED_PRODUCT_MODULES: readonly PlannedModuleDefinition[] = [
     id: 'MOD-04-PERSONALIZED-ADVISORY',
     requirementId: 'REQ-PROD-04',
     name: 'GenAI Location & Lifestyle Personalization',
-    targetPhase: 'Phase 6 (Deferred)',
+    targetPhase: 'Phase 6',
     summary:
-      'Live AQI integration with graceful fallback guidance and Gemini-orchestrated household personalization.',
+      'Controlled server-side Gemini briefing, context minimization, verified evidence guardrails, and graceful deterministic fallback.',
   },
   {
     id: 'MOD-05-IMPACT-EXPLANATIONS',
     requirementId: 'REQ-PROD-05',
     name: 'Direct Impact Explanations',
-    targetPhase: 'Phase 6+ (Deferred)',
+    targetPhase: 'Phase 6',
     summary:
-      'Clear, evidence-grounded explanations of how each recommended choice reduces exposure and local emissions.',
+      'Structured 6-part impact explanations and choice comparisons separating personal exposure, local emissions, filtration, climate, and broader sustainability.',
   },
 ] as const;

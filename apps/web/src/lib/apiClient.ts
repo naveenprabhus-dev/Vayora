@@ -1,4 +1,9 @@
 import type {
+  AdvisoryBriefingQueryInput,
+  AdvisoryCompareBodyInput,
+  AdvisoryExplainBodyInput,
+  AdvisoryOperationalMetrics,
+  AdvisoryRefreshBodyInput,
   AirQualityCurrentResponse,
   AirQualityForecastResponse,
   AirQualityGuidanceResponse,
@@ -13,6 +18,7 @@ import type {
   ApiResponse,
   AqiScaleId,
   AuthenticatedPrincipal,
+  ChoiceComparisonExplanationResponse,
   DailyRoutineResponse,
   HealthStatusPayload,
   HouseholdLifestyleInput,
@@ -21,9 +27,11 @@ import type {
   IndoorGuidanceQueryInput,
   IndoorGuidanceRefreshInput,
   LocationUpdateInput,
+  PersonalizedBriefingResponse,
   RoutinesQueryInput,
   RoutinesRefreshInput,
   SustainableAlternativesResponse,
+  WhyRecommendationResponse,
 } from '@uaqa/contracts';
 import { getPublicWebEnv } from './env.ts';
 
@@ -155,6 +163,21 @@ function buildAlternativesCompareQueryString(query: AlternativesCompareQueryInpu
   return `?${params.toString()}`;
 }
 
+function buildAdvisoryBriefingQueryString(query?: AdvisoryBriefingQueryInput): string {
+  if (!query) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.focus) {
+    params.set('focus', query.focus);
+  }
+  if (query.forceRefresh) {
+    params.set('forceRefresh', 'true');
+  }
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
 export function createApiClient(options: ApiClientOptions = {}) {
   const baseUrl = options.baseUrl ?? getPublicWebEnv().apiBaseUrl;
 
@@ -266,6 +289,26 @@ export function createApiClient(options: ApiClientOptions = {}) {
         method: 'POST',
         body: JSON.stringify(input),
       }),
+    getPersonalizedBriefing: (query?: AdvisoryBriefingQueryInput) =>
+      request<PersonalizedBriefingResponse>(
+        `/advisory/briefing${buildAdvisoryBriefingQueryString(query)}`,
+      ),
+    explainRecommendation: (input: AdvisoryExplainBodyInput) =>
+      request<WhyRecommendationResponse>('/advisory/explain-recommendation', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    compareChoicesExplanation: (input: AdvisoryCompareBodyInput) =>
+      request<ChoiceComparisonExplanationResponse>('/advisory/compare-choices', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    refreshPersonalizedAdvisory: (input: AdvisoryRefreshBodyInput = { forceRefresh: true }) =>
+      request<PersonalizedBriefingResponse>('/advisory/refresh', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    getAdvisoryMetrics: () => request<AdvisoryOperationalMetrics>('/advisory/metrics'),
   };
 }
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advisoryBriefingQuerySchema,
+  advisoryCompareBodySchema,
+  advisoryExplainBodySchema,
+  advisoryRefreshBodySchema,
   airQualityQuerySchema,
   alternativesCompareQuerySchema,
   alternativesQuerySchema,
@@ -11,6 +15,8 @@ import {
   evaluatePasswordStrength,
   firestoreIdSchema,
   forgotPasswordInputSchema,
+  geminiBriefingOutputSchema,
+  geminiExplanationOutputSchema,
   healthStatusPayloadSchema,
   householdLifestyleInputSchema,
   indoorGuidanceQuerySchema,
@@ -358,6 +364,91 @@ describe('@uaqa/contracts', () => {
       expect(alternativesRefreshBodySchema.safeParse({ ownerUid: 'uid_other' }).success).toBe(
         false,
       );
+    });
+  });
+
+  describe('Phase 6 advisory personalization contracts', () => {
+    it('validates briefing query, explain body, compare body, and refresh body strictly', () => {
+      expect(
+        advisoryBriefingQuerySchema.safeParse({ focus: 'exposure', forceRefresh: 'true' }).success,
+      ).toBe(true);
+      expect(advisoryBriefingQuerySchema.safeParse({ userId: 'uid_other' }).success).toBe(false);
+
+      expect(
+        advisoryExplainBodySchema.safeParse({
+          recommendationId: 'morning-commute-shift',
+          sourceModule: 'routines',
+          focus: 'emissions',
+        }).success,
+      ).toBe(true);
+      expect(
+        advisoryExplainBodySchema.safeParse({
+          recommendationId: '../bad',
+          sourceModule: 'routines',
+        }).success,
+      ).toBe(false);
+      expect(
+        advisoryExplainBodySchema.safeParse({
+          recommendationId: 'morning-commute-shift',
+          sourceModule: 'unknown_module',
+        }).success,
+      ).toBe(false);
+
+      expect(
+        advisoryCompareBodySchema.safeParse({
+          alternativeId: 'transport-trip-chaining-no-idling',
+          currentOption: 'separate_cold_trips',
+        }).success,
+      ).toBe(true);
+      expect(
+        advisoryCompareBodySchema.safeParse({
+          alternativeId: 'transport-trip-chaining-no-idling',
+          ownerUid: 'uid_other',
+        }).success,
+      ).toBe(false);
+
+      expect(advisoryRefreshBodySchema.safeParse({ focus: 'limitations' }).success).toBe(true);
+    });
+
+    it('validates structured Gemini briefing and 6-part impact explanation schemas', () => {
+      expect(
+        geminiBriefingOutputSchema.safeParse({
+          headline: 'Focus on indoor air filtration and trip chaining today',
+          summary:
+            'High PM2.5 calls for shifting outdoor exertion indoors while combining car errands.',
+          outdoorInfluenceSummary: 'US AQI 182 places particulate burden in the unhealthy band.',
+          indoorContextSummary: 'No indoor sensors are connected; guidance relies on home profile.',
+          priorityActions: [
+            {
+              recommendationId: 'morning-commute',
+              sourceModule: 'routines',
+              title: 'Combine short gas-vehicle errands',
+              rationale: 'Reduces cold-start tailpipe exhaust without extra outdoor exertion.',
+              impactCategory: 'local_emissions',
+            },
+          ],
+          cautionsAndLimitations: 'Educational guidance only; does not replace CO or smoke alarms.',
+          evidenceRefIds: ['EV-OPEN-METEO', 'EV-EPA-AQI'],
+        }).success,
+      ).toBe(true);
+
+      expect(
+        geminiExplanationOutputSchema.safeParse({
+          headline: 'Why combining errands helps neighborhood air',
+          contextualSummary: 'Bundling trips avoids repeated cold-start exhaust.',
+          whyThisAppliesToHousehold: 'Matches your household gas-vehicle commute profile.',
+          impactExplanation: {
+            action: 'Bundle short car errands into one trip and avoid idling.',
+            reason: 'Cold-start engines emit higher local tailpipe pollutants.',
+            expectedBenefit: 'Lowers local NO2 and exhaust plumes near entrances.',
+            impactCategory: 'local_emissions',
+            evidence: 'US EPA transportation emissions guidance.',
+            limitations: 'Does not eliminate household exposure if outdoor AQI remains high.',
+          },
+          alternativeOrTradeoffNote: 'Requires advance schedule coordination.',
+          evidenceRefIds: ['EV-EPA-AQI'],
+        }).success,
+      ).toBe(true);
     });
   });
 });

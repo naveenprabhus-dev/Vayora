@@ -1,3 +1,4 @@
+export * from './advisory.ts';
 export * from './air-quality.ts';
 export * from './alternatives.ts';
 export * from './api.ts';
