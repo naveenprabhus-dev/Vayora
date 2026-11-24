@@ -69,15 +69,19 @@ export const PROFILE_FIELD_LIMITS = {
   maxCompositionGroups: 5,
 } as const;
 
-export const locationPreferencesSchema = z.object({
-  primaryZoneType: z.enum(LOCATION_ZONE_TYPES),
-  alertsEnabled: z.boolean(),
-});
+export const locationPreferencesSchema = z
+  .object({
+    primaryZoneType: z.enum(LOCATION_ZONE_TYPES),
+    alertsEnabled: z.boolean(),
+  })
+  .strict();
 
-export const lifestylePreferencesSchema = z.object({
-  preferredGuidanceFocus: z.enum(GUIDANCE_FOCUS_PREFERENCES),
-  reminderCadence: z.enum(REMINDER_CADENCES),
-});
+export const lifestylePreferencesSchema = z
+  .object({
+    preferredGuidanceFocus: z.enum(GUIDANCE_FOCUS_PREFERENCES),
+    reminderCadence: z.enum(REMINDER_CADENCES),
+  })
+  .strict();
 
 export const householdLifestyleInputSchema = z.object({
   country: boundedStringSchema(2, PROFILE_FIELD_LIMITS.countryMaxLength, 'Country'),

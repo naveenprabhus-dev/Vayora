@@ -5,6 +5,8 @@ interface CachedAdvisoryEntry<T> {
   readonly expiresAtMs: number;
 }
 
+const MAX_CACHE_ENTRIES = 500;
+
 export class AdvisoryCacheRepository {
   private readonly store = new Map<string, CachedAdvisoryEntry<unknown>>();
   private readonly inFlight = new Map<string, Promise<unknown>>();
@@ -27,6 +29,12 @@ export class AdvisoryCacheRepository {
   }
 
   public set<T>(key: string, value: T, nowMs = Date.now()): void {
+    if (this.store.size >= MAX_CACHE_ENTRIES && !this.store.has(key)) {
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.store.delete(oldestKey);
+      }
+    }
     this.store.set(key, {
       value,
       expiresAtMs: nowMs + this.ttlMs,

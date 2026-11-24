@@ -33,7 +33,11 @@ export function IndoorEnvironmentSection({
           <p className="font-mono text-xs font-medium tracking-wider text-[#0F5132] uppercase">
             VAYORA · Indoor Air Quality Assistant
           </p>
-          <h2 id="indoor-air-heading" className="text-2xl font-bold tracking-tight text-slate-950">
+          <h2
+            id="indoor-air-heading"
+            tabIndex={-1}
+            className="text-2xl font-bold tracking-tight text-slate-950 focus:outline-none"
+          >
             {overview.headline}
           </h2>
           <p className="max-w-3xl text-sm leading-relaxed text-slate-700">{overview.summary}</p>

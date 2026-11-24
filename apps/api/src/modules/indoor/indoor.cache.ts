@@ -6,6 +6,8 @@ interface IndoorCacheEntry {
   readonly cachedAtMs: number;
 }
 
+const MAX_CACHE_ENTRIES = 500;
+
 export class IndoorCacheRepository {
   private readonly entries = new Map<string, IndoorCacheEntry>();
   private readonly ttlMs: number;
@@ -32,6 +34,12 @@ export class IndoorCacheRepository {
   }
 
   public set(cacheKey: string, response: IndoorAirGuidanceResponse): void {
+    if (this.entries.size >= MAX_CACHE_ENTRIES && !this.entries.has(cacheKey)) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.entries.delete(oldestKey);
+      }
+    }
     this.entries.set(cacheKey, {
       response,
       cachedAtMs: this.nowMs(),

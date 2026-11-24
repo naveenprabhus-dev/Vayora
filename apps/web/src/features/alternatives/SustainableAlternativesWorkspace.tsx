@@ -7,6 +7,7 @@ import type {
 import { useCallback, useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
+import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import { AlternativeComparisonPanel } from './AlternativeComparisonPanel.tsx';
 import { AlternativeRecommendationCard } from './AlternativeRecommendationCard.tsx';
 import {
@@ -22,12 +23,14 @@ export interface SustainableAlternativesWorkspaceProps {
   readonly profile: HouseholdLifestyleRecord;
   readonly apiClient: WebApiClient;
   readonly airQualitySyncToken?: string | undefined;
+  readonly onSessionIssue?: (error: unknown) => void;
 }
 
 export function SustainableAlternativesWorkspace({
   profile,
   apiClient,
   airQualitySyncToken,
+  onSessionIssue,
 }: SustainableAlternativesWorkspaceProps) {
   const [alternativesData, setAlternativesData] = useState<SustainableAlternativesResponse | null>(
     null,
@@ -66,11 +69,8 @@ export function SustainableAlternativesWorkspace({
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load sustainable alternatives right now.',
-          );
+          onSessionIssue?.(error);
+          setLoadError(formatWorkspaceError(error, 'Sustainable Alternatives Advisor'));
         }
       } finally {
         if (!cancelled) {
@@ -107,6 +107,7 @@ export function SustainableAlternativesWorkspace({
     profile.householdSize,
     profile.householdComposition,
     profile.lifestylePreferences.preferredGuidanceFocus,
+    onSessionIssue,
   ]);
 
   const handleRefresh = useCallback(async () => {
@@ -124,11 +125,8 @@ export function SustainableAlternativesWorkspace({
       setAlternativesData(response);
       setSelectedComparison(response.featuredComparison);
     } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to refresh sustainable alternatives right now.',
-      );
+      onSessionIssue?.(error);
+      setLoadError(formatWorkspaceError(error, 'Sustainable Alternatives Advisor'));
     } finally {
       setIsRefreshing(false);
     }
@@ -139,6 +137,7 @@ export function SustainableAlternativesWorkspace({
     relevanceFilter,
     impactFilter,
     practicalityFilter,
+    onSessionIssue,
   ]);
 
   const handleCompare = useCallback(
@@ -152,16 +151,13 @@ export function SustainableAlternativesWorkspace({
         });
         setSelectedComparison(comparison);
       } catch (error) {
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : 'Unable to load side-by-side alternative comparison right now.',
-        );
+        onSessionIssue?.(error);
+        setLoadError(formatWorkspaceError(error, 'Sustainable Choice Comparison'));
       } finally {
         setIsComparing(false);
       }
     },
-    [apiClient],
+    [apiClient, onSessionIssue],
   );
 
   const handleResetFilters = useCallback(() => {

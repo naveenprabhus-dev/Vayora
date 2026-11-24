@@ -8,6 +8,7 @@ import type {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
+import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import type { HouseholdStore } from '../../lib/householdStore.ts';
 import { AqiSummaryCard } from './AqiSummaryCard.tsx';
 import { DataTransparencyPanel } from './DataTransparencyPanel.tsx';
@@ -24,6 +25,7 @@ export interface AirQualityDashboardProps {
   readonly householdStore: HouseholdStore;
   readonly onProfileUpdated: (updated: HouseholdLifestyleRecord) => void;
   readonly onTelemetryUpdated?: (syncToken: string) => void;
+  readonly onSessionIssue?: (error: unknown) => void;
 }
 
 export function AirQualityDashboard({
@@ -33,10 +35,13 @@ export function AirQualityDashboard({
   householdStore,
   onProfileUpdated,
   onTelemetryUpdated,
+  onSessionIssue,
 }: AirQualityDashboardProps) {
   const [selectedScale, setSelectedScale] = useState<AqiScaleId>('us_aqi');
   const [horizonHours, setHorizonHours] = useState<24 | 48>(24);
   const horizonHoursRef = useRef<24 | 48>(24);
+  const lastFetchedLocationKeyRef = useRef<string | null>(null);
+  const syncCounterRef = useRef(0);
   const [currentData, setCurrentData] = useState<AirQualityCurrentResponse | null>(null);
   const [forecastSeries, setForecastSeries] = useState<readonly HourlyForecastPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +54,11 @@ export function AirQualityDashboard({
   const locationKey = `${profile.country}|${profile.city}|${profile.neighborhood}|${profile.postalPrefix}`;
 
   const loadCurrentIntelligence = useCallback(
-    async (opts?: { readonly silentRefresh?: boolean; readonly hours?: 24 | 48 }) => {
+    async (opts?: {
+      readonly silentRefresh?: boolean;
+      readonly hours?: 24 | 48;
+      readonly notifyDownstream?: boolean;
+    }) => {
       const targetHours = opts?.hours ?? horizonHoursRef.current;
       if (opts?.silentRefresh) {
         setIsRefreshing(true);
@@ -62,24 +71,28 @@ export function AirQualityDashboard({
         const response = await apiClient.getAirQualityCurrent({ hours: targetHours });
         setCurrentData(response);
         setForecastSeries(response.forecastPreview);
-        onTelemetryUpdated?.(
-          `${response.transparency.fetchedAt}:${response.transparency.freshnessStatus}`,
-        );
+        if (opts?.notifyDownstream !== false) {
+          syncCounterRef.current += 1;
+          onTelemetryUpdated?.(
+            `${response.transparency.fetchedAt}:${response.transparency.freshnessStatus}:${syncCounterRef.current}`,
+          );
+        }
       } catch (error) {
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : 'Unable to retrieve air quality intelligence right now.',
-        );
+        onSessionIssue?.(error);
+        setLoadError(formatWorkspaceError(error, 'Air Quality Intelligence'));
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     },
-    [apiClient],
+    [apiClient, onSessionIssue, onTelemetryUpdated],
   );
 
   useEffect(() => {
+    if (lastFetchedLocationKeyRef.current === locationKey) {
+      return;
+    }
+
     let cancelled = false;
     async function fetchOnMountOrLocationChange() {
       try {
@@ -87,20 +100,15 @@ export function AirQualityDashboard({
           hours: horizonHoursRef.current,
         });
         if (!cancelled) {
+          lastFetchedLocationKeyRef.current = locationKey;
           setCurrentData(response);
           setForecastSeries(response.forecastPreview);
           setLoadError(null);
-          onTelemetryUpdated?.(
-            `${response.transparency.fetchedAt}:${response.transparency.freshnessStatus}`,
-          );
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to retrieve air quality intelligence right now.',
-          );
+          onSessionIssue?.(error);
+          setLoadError(formatWorkspaceError(error, 'Air Quality Intelligence'));
         }
       } finally {
         if (!cancelled) {
@@ -114,7 +122,7 @@ export function AirQualityDashboard({
     return () => {
       cancelled = true;
     };
-  }, [apiClient, locationKey, onTelemetryUpdated]);
+  }, [apiClient, locationKey, onSessionIssue]);
 
   const handleChangeHorizon = useCallback(
     async (nextHours: 24 | 48) => {
@@ -125,14 +133,13 @@ export function AirQualityDashboard({
         const forecastRes = await apiClient.getAirQualityForecast({ hours: nextHours });
         setForecastSeries(forecastRes.hourly);
       } catch (error) {
-        setLoadError(
-          error instanceof Error ? error.message : 'Unable to retrieve extended hourly forecast.',
-        );
+        onSessionIssue?.(error);
+        setLoadError(formatWorkspaceError(error, 'Air Quality Forecast'));
       } finally {
         setIsLoadingForecast(false);
       }
     },
-    [apiClient],
+    [apiClient, onSessionIssue],
   );
 
   const handleUpdateLocation = useCallback(
@@ -169,16 +176,28 @@ export function AirQualityDashboard({
         };
 
         const saved = await householdStore.saveHouseholdProfile(userId, nextProfileInput);
+        lastFetchedLocationKeyRef.current = `${saved.country}|${saved.city}|${saved.neighborhood}|${saved.postalPrefix}`;
         onProfileUpdated(saved);
         setLocationNotice(
           `Monitoring location updated to ${updatedLocation.location.neighborhood}, ${updatedLocation.location.city}, ${updatedLocation.location.country}.`,
         );
-        await loadCurrentIntelligence({ silentRefresh: true });
+        await loadCurrentIntelligence({ silentRefresh: true, notifyDownstream: false });
+      } catch (error) {
+        onSessionIssue?.(error);
+        throw error;
       } finally {
         setIsUpdatingLocation(false);
       }
     },
-    [apiClient, householdStore, loadCurrentIntelligence, onProfileUpdated, profile, userId],
+    [
+      apiClient,
+      householdStore,
+      loadCurrentIntelligence,
+      onProfileUpdated,
+      onSessionIssue,
+      profile,
+      userId,
+    ],
   );
 
   if (isLoading && !currentData) {

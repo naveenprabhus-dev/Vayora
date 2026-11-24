@@ -6,6 +6,8 @@ interface AlternativesCacheEntry {
   readonly cachedAtMs: number;
 }
 
+const MAX_CACHE_ENTRIES = 500;
+
 export class AlternativesCacheRepository {
   private readonly entries = new Map<string, AlternativesCacheEntry>();
   private readonly ttlMs: number;
@@ -32,6 +34,12 @@ export class AlternativesCacheRepository {
   }
 
   public set(cacheKey: string, response: SustainableAlternativesResponse): void {
+    if (this.entries.size >= MAX_CACHE_ENTRIES && !this.entries.has(cacheKey)) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.entries.delete(oldestKey);
+      }
+    }
     this.entries.set(cacheKey, {
       response,
       cachedAtMs: this.nowMs(),

@@ -6,6 +6,7 @@ import type {
 import { useCallback, useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
+import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import { IndoorActionPlanSection } from './IndoorActionPlanSection.tsx';
 import { IndoorEnvironmentSection } from './IndoorEnvironmentSection.tsx';
 import { PollutionSourcesSection } from './PollutionSourcesSection.tsx';
@@ -15,12 +16,14 @@ export interface IndoorAirAssistantWorkspaceProps {
   readonly profile: HouseholdLifestyleRecord;
   readonly apiClient: WebApiClient;
   readonly airQualitySyncToken?: string | undefined;
+  readonly onSessionIssue?: (error: unknown) => void;
 }
 
 export function IndoorAirAssistantWorkspace({
   profile,
   apiClient,
   airQualitySyncToken,
+  onSessionIssue,
 }: IndoorAirAssistantWorkspaceProps) {
   const [guidanceData, setGuidanceData] = useState<IndoorAirGuidanceResponse | null>(null);
   const [scenario, setScenario] = useState<IndoorScenarioId>('baseline');
@@ -41,11 +44,8 @@ export function IndoorAirAssistantWorkspace({
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load indoor air quality guidance right now.',
-          );
+          onSessionIssue?.(error);
+          setLoadError(formatWorkspaceError(error, 'Indoor Air Quality Assistant'));
         }
       } finally {
         if (!cancelled) {
@@ -82,6 +82,7 @@ export function IndoorAirAssistantWorkspace({
     profile.householdSize,
     profile.householdComposition,
     profile.lifestylePreferences.preferredGuidanceFocus,
+    onSessionIssue,
   ]);
 
   const handleSelectScenario = useCallback((nextScenario: IndoorScenarioId) => {
@@ -99,15 +100,12 @@ export function IndoorAirAssistantWorkspace({
       });
       setGuidanceData(response);
     } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to refresh indoor air quality guidance right now.',
-      );
+      onSessionIssue?.(error);
+      setLoadError(formatWorkspaceError(error, 'Indoor Air Quality Assistant'));
     } finally {
       setIsRefreshing(false);
     }
-  }, [apiClient, scenario]);
+  }, [apiClient, onSessionIssue, scenario]);
 
   if (isLoading && !guidanceData) {
     return (

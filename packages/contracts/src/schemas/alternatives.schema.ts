@@ -48,7 +48,13 @@ export const alternativesCompareQuerySchema = z
       .min(2)
       .max(80)
       .regex(/^[a-z0-9-]+$/, 'Invalid alternative identifier format.'),
-    currentOption: z.string().trim().min(2).max(80).optional(),
+    currentOption: z
+      .string()
+      .trim()
+      .min(2)
+      .max(80)
+      .regex(/^[a-zA-Z0-9._-]+$/, 'Invalid baseline option identifier format.')
+      .optional(),
   })
   .strict();
 

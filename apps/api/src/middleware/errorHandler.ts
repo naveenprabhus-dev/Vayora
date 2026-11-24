@@ -55,6 +55,33 @@ export function createErrorHandler(isProduction: boolean) {
       return;
     }
 
+    if (typeof err === 'object' && err !== null) {
+      const parserErr = err as { type?: unknown; status?: unknown; statusCode?: unknown };
+      if (parserErr.type === 'entity.too.large' || parserErr.status === 413) {
+        res.status(413).json(
+          buildErrorResponse({
+            code: 'VALIDATION_ERROR',
+            message: 'Request payload exceeds the maximum allowed size.',
+            requestId,
+          }),
+        );
+        return;
+      }
+      if (
+        parserErr.type === 'entity.parse.failed' ||
+        (err instanceof SyntaxError && parserErr.status === 400)
+      ) {
+        res.status(400).json(
+          buildErrorResponse({
+            code: 'VALIDATION_ERROR',
+            message: 'Malformed JSON request body.',
+            requestId,
+          }),
+        );
+        return;
+      }
+    }
+
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     console.error(
       JSON.stringify(

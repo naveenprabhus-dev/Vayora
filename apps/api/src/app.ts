@@ -95,6 +95,19 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
       geocodeTtlMs: config.geocodingCacheTtlMs,
     });
 
+  const routinesCacheRepository = deps.routinesCacheRepository ?? new RoutinesCacheRepository();
+  const indoorCacheRepository = deps.indoorCacheRepository ?? new IndoorCacheRepository();
+  const alternativesCacheRepository =
+    deps.alternativesCacheRepository ?? new AlternativesCacheRepository();
+  const advisoryCacheRepository = deps.advisoryCacheRepository ?? new AdvisoryCacheRepository();
+
+  const invalidateOwnerCaches = (ownerUid: string): void => {
+    routinesCacheRepository.invalidateOwner(ownerUid);
+    indoorCacheRepository.invalidateOwner(ownerUid);
+    alternativesCacheRepository.invalidateOwner(ownerUid);
+    advisoryCacheRepository.invalidateOwner(ownerUid);
+  };
+
   const airQualityService = new AirQualityService({
     airQualityProvider,
     geocodingProvider,
@@ -102,24 +115,25 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
     cacheRepository,
     cacheTtlSeconds: Math.round(config.airQualityCacheTtlMs / 1000),
     staleTtlSeconds: Math.round(config.airQualityStaleTtlMs / 1000),
+    onHouseholdUpdated: invalidateOwnerCaches,
   });
 
   const routinesService = new RoutinesService({
     householdRepository,
     airQualityService,
-    cacheRepository: deps.routinesCacheRepository ?? new RoutinesCacheRepository(),
+    cacheRepository: routinesCacheRepository,
   });
 
   const indoorAirService = new IndoorAirService({
     householdRepository,
     airQualityService,
-    cacheRepository: deps.indoorCacheRepository ?? new IndoorCacheRepository(),
+    cacheRepository: indoorCacheRepository,
   });
 
   const alternativesService = new SustainableAlternativesService({
     householdRepository,
     airQualityService,
-    cacheRepository: deps.alternativesCacheRepository ?? new AlternativesCacheRepository(),
+    cacheRepository: alternativesCacheRepository,
   });
 
   const geminiClient = deps.geminiClient ?? new GoogleGenAIAdvisoryClient(config);
@@ -129,7 +143,7 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
     indoorAirService,
     alternativesService,
     geminiClient,
-    cacheRepository: deps.advisoryCacheRepository ?? new AdvisoryCacheRepository(),
+    cacheRepository: advisoryCacheRepository,
     metricsTracker: deps.advisoryMetricsTracker ?? new AdvisoryMetricsTracker(),
     ...(deps.advisoryTimeoutMs !== undefined ? { timeoutMs: deps.advisoryTimeoutMs } : {}),
   });
@@ -143,7 +157,12 @@ export function createApiRouter(deps: ApiDependencies = {}): Router {
   apiRouter.use('/auth', createAuthRouter({ config, tokenVerifier, roleResolver }));
   apiRouter.use(
     '/household',
-    createHouseholdRouter({ tokenVerifier, roleResolver, householdRepository }),
+    createHouseholdRouter({
+      tokenVerifier,
+      roleResolver,
+      householdRepository,
+      onHouseholdUpdated: invalidateOwnerCaches,
+    }),
   );
   apiRouter.use(
     '/air-quality',

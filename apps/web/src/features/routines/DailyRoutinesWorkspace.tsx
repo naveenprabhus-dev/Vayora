@@ -7,6 +7,7 @@ import type {
 import { useCallback, useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
+import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import { BetterTimeWindowsPanel } from './BetterTimeWindowsPanel.tsx';
 import { CommuteStrategyPanel } from './CommuteStrategyPanel.tsx';
 import {
@@ -20,12 +21,14 @@ export interface DailyRoutinesWorkspaceProps {
   readonly profile: HouseholdLifestyleRecord;
   readonly apiClient: WebApiClient;
   readonly airQualitySyncToken?: string | undefined;
+  readonly onSessionIssue?: (error: unknown) => void;
 }
 
 export function DailyRoutinesWorkspace({
   profile,
   apiClient,
   airQualitySyncToken,
+  onSessionIssue,
 }: DailyRoutinesWorkspaceProps) {
   const [routineData, setRoutineData] = useState<DailyRoutineResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,11 +72,8 @@ export function DailyRoutinesWorkspace({
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load personalized daily routines right now.',
-          );
+          onSessionIssue?.(error);
+          setLoadError(formatWorkspaceError(error, 'Low-Emission Daily Routines'));
         }
       } finally {
         if (!cancelled) {
@@ -87,7 +87,14 @@ export function DailyRoutinesWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [apiClient, profileSyncKey, airQualitySyncToken, scenarioCommute, scenarioOutdoor]);
+  }, [
+    apiClient,
+    profileSyncKey,
+    airQualitySyncToken,
+    scenarioCommute,
+    scenarioOutdoor,
+    onSessionIssue,
+  ]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -100,13 +107,12 @@ export function DailyRoutinesWorkspace({
       });
       setRoutineData(response);
     } catch (error) {
-      setLoadError(
-        error instanceof Error ? error.message : 'Unable to refresh daily routines right now.',
-      );
+      onSessionIssue?.(error);
+      setLoadError(formatWorkspaceError(error, 'Low-Emission Daily Routines'));
     } finally {
       setIsRefreshing(false);
     }
-  }, [apiClient, scenarioCommute, scenarioOutdoor]);
+  }, [apiClient, onSessionIssue, scenarioCommute, scenarioOutdoor]);
 
   const handleChangeScenario = useCallback(
     (next: {

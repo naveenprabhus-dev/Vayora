@@ -9,6 +9,7 @@ import type {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
+import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import { ChoiceComparisonExplainerPanel } from './ChoiceComparisonExplainerPanel.tsx';
 import { DailyBriefingPanel } from './DailyBriefingPanel.tsx';
 import { RecommendationExplainerPanel } from './RecommendationExplainerPanel.tsx';
@@ -17,12 +18,14 @@ export interface PersonalizedAdvisoryWorkspaceProps {
   readonly profile: HouseholdLifestyleRecord;
   readonly apiClient: WebApiClient;
   readonly airQualitySyncToken?: string | undefined;
+  readonly onSessionIssue?: (error: unknown) => void;
 }
 
 export function PersonalizedAdvisoryWorkspace({
   profile,
   apiClient,
   airQualitySyncToken,
+  onSessionIssue,
 }: PersonalizedAdvisoryWorkspaceProps) {
   const [briefing, setBriefing] = useState<PersonalizedBriefingResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +67,10 @@ export function PersonalizedAdvisoryWorkspace({
     if (firstAlt) {
       setSelectedAlternativeId(firstAlt.recommendationId);
     }
+    setExplanation(null);
+    setComparisonExplanation(null);
+    setExplainError(null);
+    setCompareError(null);
   }, []);
 
   useEffect(() => {
@@ -79,11 +86,8 @@ export function PersonalizedAdvisoryWorkspace({
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load personalized AI daily briefing right now.',
-          );
+          onSessionIssue?.(error);
+          setLoadError(formatWorkspaceError(error, 'Personalized Daily Briefing'));
         }
       } finally {
         if (!cancelled) {
@@ -117,6 +121,7 @@ export function PersonalizedAdvisoryWorkspace({
     profile.lifestylePreferences.preferredGuidanceFocus,
     selectedFocus,
     syncDefaultSelections,
+    onSessionIssue,
   ]);
 
   const handleRefresh = useCallback(async () => {
@@ -130,15 +135,12 @@ export function PersonalizedAdvisoryWorkspace({
       setBriefing(response);
       syncDefaultSelections(response);
     } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to refresh personalized briefing right now.',
-      );
+      onSessionIssue?.(error);
+      setLoadError(formatWorkspaceError(error, 'Personalized Daily Briefing'));
     } finally {
       setIsRefreshing(false);
     }
-  }, [apiClient, selectedFocus, syncDefaultSelections]);
+  }, [apiClient, onSessionIssue, selectedFocus, syncDefaultSelections]);
 
   const requestExplanationFor = useCallback(
     async (
@@ -159,16 +161,13 @@ export function PersonalizedAdvisoryWorkspace({
         });
         setExplanation(result);
       } catch (error) {
-        setExplainError(
-          error instanceof Error
-            ? error.message
-            : 'Unable to generate recommendation explanation right now.',
-        );
+        onSessionIssue?.(error);
+        setExplainError(formatWorkspaceError(error, 'Recommendation Explanation'));
       } finally {
         setIsExplaining(false);
       }
     },
-    [apiClient],
+    [apiClient, onSessionIssue],
   );
 
   const handleInspectRecommendation = useCallback(
@@ -193,13 +192,12 @@ export function PersonalizedAdvisoryWorkspace({
       });
       setComparisonExplanation(result);
     } catch (error) {
-      setCompareError(
-        error instanceof Error ? error.message : 'Unable to compare choices right now.',
-      );
+      onSessionIssue?.(error);
+      setCompareError(formatWorkspaceError(error, 'Choice Comparison Explainer'));
     } finally {
       setIsComparing(false);
     }
-  }, [apiClient, selectedAlternativeId, selectedFocus]);
+  }, [apiClient, onSessionIssue, selectedAlternativeId, selectedFocus]);
 
   if (isLoading && !briefing) {
     return (

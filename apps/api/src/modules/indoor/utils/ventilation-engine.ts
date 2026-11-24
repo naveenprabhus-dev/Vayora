@@ -102,12 +102,15 @@ export function buildVentilationGuidance(options: {
     };
   }
 
-  // Case 3: Moderate pollution, elevated specific pollutants (NO2/O3/PM), or stale outdoor telemetry
+  // Case 3: Moderate pollution, elevated specific pollutants (PM/NO2/O3/SO2/CO), or stale outdoor telemetry
   if (
     aqState.effectiveLevel === 'moderate' ||
     aqState.isStale ||
+    aqState.isPmElevated ||
     aqState.isOzoneElevated ||
     aqState.isNo2Elevated ||
+    aqState.isSo2Elevated ||
+    aqState.isCoElevated ||
     scenario === 'cleaning' ||
     scenario === 'cooking'
   ) {
@@ -115,7 +118,11 @@ export function buildVentilationGuidance(options: {
       ? ' Ground-level ozone (O3) often peaks during sunlit afternoon hours; prefer cooler, lower-ozone intervals.'
       : aqState.isNo2Elevated
         ? ' Roadway nitrogen dioxide (NO2) is elevated; avoid opening street-facing windows during rush hours.'
-        : '';
+        : aqState.isPmElevated
+          ? ' Particulate concentrations (PM2.5/PM10) are elevated; keep window airing brief and monitor outdoor dispersion.'
+          : aqState.isSo2Elevated || aqState.isCoElevated
+            ? ' Combustion-related gas concentrations are elevated; prefer brief cross-ventilation away from traffic or smoke plumes.'
+            : '';
 
     const activityNote =
       scenario === 'cleaning'

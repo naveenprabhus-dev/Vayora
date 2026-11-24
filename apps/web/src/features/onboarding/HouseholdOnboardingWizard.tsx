@@ -555,11 +555,11 @@ export function HouseholdOnboardingWizard({
           </div>
 
           {step < 2 ? (
-            <Button type="button" variant="primary" onClick={handleNextStep}>
+            <Button key="wizard-next-step" type="button" variant="primary" onClick={handleNextStep}>
               Continue to Step {step + 2}
             </Button>
           ) : (
-            <Button type="submit" variant="primary" isLoading={isSaving}>
+            <Button key="wizard-submit" type="submit" variant="primary" isLoading={isSaving}>
               {isSaving
                 ? 'Saving profile...'
                 : isEditingExisting

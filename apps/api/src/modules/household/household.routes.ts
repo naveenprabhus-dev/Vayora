@@ -30,6 +30,7 @@ export function createHouseholdRouter(deps: {
   tokenVerifier: TokenVerifier;
   roleResolver: RoleResolver;
   householdRepository: HouseholdRepository;
+  onHouseholdUpdated?: (ownerUid: string) => void;
 }): Router {
   const router = Router();
   const authenticate = createAuthenticateMiddleware(deps.tokenVerifier, deps.roleResolver);
@@ -78,6 +79,7 @@ export function createHouseholdRouter(deps: {
       try {
         const principal = getPrincipalOrThrow(req.principal);
         const profile = await deps.householdRepository.upsertForOwner(principal.uid, req.body);
+        deps.onHouseholdUpdated?.(principal.uid);
         sendSuccess(res, { profile }, 200, req.context?.requestId);
       } catch (error) {
         next(error);

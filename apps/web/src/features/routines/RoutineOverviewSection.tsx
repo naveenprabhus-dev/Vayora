@@ -76,7 +76,8 @@ export function RoutineOverviewSection({
           </p>
           <h2
             id="daily-routines-heading"
-            className="text-2xl font-bold tracking-tight text-slate-950"
+            tabIndex={-1}
+            className="text-2xl font-bold tracking-tight text-slate-950 focus:outline-none"
           >
             {overview.headline}
           </h2>

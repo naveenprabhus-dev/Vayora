@@ -95,7 +95,8 @@ export function LocationHeader({
           </p>
           <h2
             id="air-quality-location-heading"
-            className="text-2xl font-bold tracking-tight text-slate-950"
+            tabIndex={-1}
+            className="text-2xl font-bold tracking-tight text-slate-950 focus:outline-none"
           >
             {location.neighborhood}, {location.city}, {location.country}
           </h2>

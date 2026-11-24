@@ -12,15 +12,27 @@ import {
 export type GuardrailValidationResult<T> =
   { readonly ok: true; readonly data: T } | { readonly ok: false; readonly reason: string };
 
-const PERCENT_CLAIM_PATTERN = /\b\d+(?:\.\d+)?\s*%/;
+const PERCENT_CLAIM_PATTERN = /\b\d+(?:\.\d+)?\s*(?:%|(?:per\s*cent|percent)\b)/i;
 const CURRENCY_SAVING_PATTERN =
-  /(?:[$€£]\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*(?:PLN|USD|EUR|GBP|dollars|euros|zloty)\b)/i;
+  /(?:[$€£¥₹]\s*\d+(?:\.\d+)?|\b(?:PLN|USD|EUR|GBP|CHF)\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*(?:PLN|USD|EUR|GBP|CHF|dollars|euros|zloty)\b|zł\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*zł(?:\s|$|[.,;!]))/iu;
+const RAW_HTML_OR_SCRIPT_PATTERN =
+  /(?:<\s*\/?\s*(?:script|iframe|object|embed|svg|img|style|link|meta)\b|javascript\s*:|on(?:load|error|click|mouseover|focus)\s*=)/i;
 const ABSOLUTE_CLAIM_PATTERN =
   /\b(?:pollution[- ]free|zero pollution|100%\s*clean|completely safe|guarantees?\s+(?:health|safety|protection)|cures?\s+asthma|prevents?\s+(?:all\s+)?disease)\b/i;
 const INVENTED_MEASURED_INDOOR_PATTERN =
   /\b(?:measured|detected|recorded)\s+(?:indoors?|inside)\b[^.]{0,60}\b\d+(?:\.\d+)?\s*(?:µg\/m³|ug\/m3|ppm|ppb)\b/i;
+const POSITIVE_INDOOR_SENSOR_CLAIM_PATTERN =
+  /\b(?:your|the)\s+(?:indoor|home)\s+(?:air\s+)?(?:sensor|monitor)\s+(?:detects?|reads?|shows?|confirms?|measured)\b/i;
 const POSITIVE_CYCLING_ADVICE_PATTERN =
   /\b(?:great|ideal|recommended|safe|advised)\s+(?:time|conditions?|day)?\s*(?:for|to)\s+(?:outdoor\s+)?(?:cycl(?:ing|e)|bik(?:ing|e)|jog(?:ging)?|running)\b/i;
+const POSITIVE_WINDOW_AIRING_PATTERN =
+  /\b(?:great|good|ideal|safe|recommended|advised)\s+(?:time|conditions?|moment)?\s*(?:to|for)\s+(?:open(?:ing)?\s+(?:the\s+)?windows?|outdoor\s+ventilation|air(?:ing)?\s+out)\b/i;
+const FALSE_CLEAN_AIR_CLAIM_PATTERN =
+  /\boutdoor\s+air\s+(?:quality\s+)?is\s+(?:clean|good|healthy|low\s+pollution)\b/i;
+const POSITIVE_ENDORSEMENT_PATTERN =
+  /\b(?:is|now|currently)\s+(?:a\s+)?(?:great|ideal|recommended|safe|advised)\b/i;
+const NEGATED_ENDORSEMENT_PATTERN =
+  /\b(?:not|never)\s+(?:a\s+)?(?:great|ideal|recommended|safe|advised)\b/i;
 const UNQUALIFIED_HEPA_CO_CLAIM_PATTERN =
   /\bhepa\b[^.]{0,60}\b(?:removes?|filters?|captures?|eliminates?)\b[^.]{0,40}\b(?:carbon monoxide|\bco\b|all gases)\b/i;
 
@@ -50,6 +62,10 @@ function checkUnsafeOrUnsupportedClaims(
 ): string | null {
   const combined = texts.join(' ');
 
+  if (RAW_HTML_OR_SCRIPT_PATTERN.test(combined)) {
+    return 'Unsafe HTML or script markup detected in AI response.';
+  }
+
   if (PERCENT_CLAIM_PATTERN.test(combined)) {
     return 'Unsupported percentage claim detected in AI response.';
   }
@@ -67,6 +83,14 @@ function checkUnsafeOrUnsupportedClaims(
   }
 
   if (
+    !context.indoorSensorConnected &&
+    POSITIVE_INDOOR_SENSOR_CLAIM_PATTERN.test(combined) &&
+    !/\bno\s+(?:indoor|home)\s+(?:air\s+)?(?:sensor|monitor)/i.test(combined)
+  ) {
+    return 'Fabricated indoor sensor capability or reading detected in AI response.';
+  }
+
+  if (
     UNQUALIFIED_HEPA_CO_CLAIM_PATTERN.test(combined) &&
     !/\b(?:cannot|does not|do not|never)\b[^.]{0,30}\b(?:carbon monoxide|\bco\b|gases)\b/i.test(
       combined,
@@ -75,16 +99,37 @@ function checkUnsafeOrUnsupportedClaims(
     return 'Inaccurate claim that HEPA filtration removes carbon monoxide or all gases.';
   }
 
-  if (context.airQuality.isCyclingNotAdvised && POSITIVE_CYCLING_ADVICE_PATTERN.test(combined)) {
-    return 'Contradictory outdoor cycling recommendation during high-pollution conditions.';
+  if (
+    (context.airQuality.isCyclingNotAdvised ||
+      context.airQuality.availabilityStatus === 'unavailable') &&
+    POSITIVE_CYCLING_ADVICE_PATTERN.test(combined)
+  ) {
+    return 'Contradictory outdoor cycling recommendation during high-pollution or unavailable telemetry conditions.';
   }
 
-  // Verify any mentioned AQI or ug/m3 numbers appear in deterministic context facts
+  if (
+    context.airQuality.availabilityStatus === 'unavailable' &&
+    (POSITIVE_WINDOW_AIRING_PATTERN.test(combined) || FALSE_CLEAN_AIR_CLAIM_PATTERN.test(combined))
+  ) {
+    return 'Contradictory outdoor air or ventilation claim while outdoor telemetry is unavailable.';
+  }
+
+  // Verify any mentioned AQI or pollutant concentration numbers appear in deterministic context facts
   const allowedNumbers = new Set(context.suppliedNumericFacts);
-  const numericMatches = combined.matchAll(
-    /\b(?:aqi|pm2\.5|pm10|no2|o3)\s*(?:of|is|:|=)?\s*(\d+(?:\.\d+)?)\b/gi,
+  const labelNumericMatches = combined.matchAll(
+    /\b(?:us\s+aqi|european\s+aqi|eaqi|aqi|pm2\.5|pm10|no2|so2|o3|co\b(?!-))\s*(?:(?:of|is|was|are|reached|hit|at|near|around|above|below|under|over|:|=)\s*){0,3}(\d+(?:\.\d+)?)(?!\s*[-–]\s*\d)/gi,
   );
-  for (const match of numericMatches) {
+  for (const match of labelNumericMatches) {
+    const num = match[1];
+    if (num && !allowedNumbers.has(num)) {
+      return `Unsupported environmental number (${num}) not supplied in deterministic inputs.`;
+    }
+  }
+
+  const unitNumericMatches = combined.matchAll(
+    /(?<![-–:\d])\b(\d+(?:\.\d+)?)\s*(?:µg\/m³|ug\/m3|ppm|ppb|(?:us\s+|european\s+)?e?aqi\b)/gi,
+  );
+  for (const match of unitNumericMatches) {
     const num = match[1];
     if (num && !allowedNumbers.has(num)) {
       return `Unsupported environmental number (${num}) not supplied in deterministic inputs.`;
@@ -145,7 +190,9 @@ export function validateGeminiBriefingOutput(input: {
     }
     if (
       (matched.status === 'not_advised_now' || matched.status === 'unavailable') &&
-      POSITIVE_CYCLING_ADVICE_PATTERN.test(action.rationale)
+      (POSITIVE_CYCLING_ADVICE_PATTERN.test(action.rationale) ||
+        (POSITIVE_ENDORSEMENT_PATTERN.test(`${action.title} ${action.rationale}`) &&
+          !NEGATED_ENDORSEMENT_PATTERN.test(`${action.title} ${action.rationale}`)))
     ) {
       return {
         ok: false,
@@ -190,6 +237,31 @@ export function validateGeminiExplanationOutput(input: {
       ok: false,
       reason: `AI explanation reclassified deterministic impact category (${parsed.data.impactExplanation.impactCategory} vs ${input.recommendation.impactCategory}).`,
     };
+  }
+
+  if (
+    input.recommendation.status === 'not_advised_now' ||
+    input.recommendation.status === 'unavailable'
+  ) {
+    const explanationFields = [
+      parsed.data.headline,
+      parsed.data.contextualSummary,
+      parsed.data.whyThisAppliesToHousehold,
+      parsed.data.impactExplanation.action,
+      parsed.data.impactExplanation.reason,
+      parsed.data.impactExplanation.expectedBenefit,
+      parsed.data.alternativeOrTradeoffNote,
+    ].join(' ');
+    if (
+      POSITIVE_CYCLING_ADVICE_PATTERN.test(explanationFields) ||
+      (POSITIVE_ENDORSEMENT_PATTERN.test(explanationFields) &&
+        !NEGATED_ENDORSEMENT_PATTERN.test(explanationFields))
+    ) {
+      return {
+        ok: false,
+        reason: `AI explanation contradicted ${input.recommendation.status} status for ${input.recommendation.recommendationId}.`,
+      };
+    }
   }
 
   const claimError = checkUnsafeOrUnsupportedClaims(collectTextFields(parsed.data), input.context);

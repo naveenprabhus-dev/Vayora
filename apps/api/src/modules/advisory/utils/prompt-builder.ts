@@ -175,7 +175,7 @@ export function buildBriefingPrompt(
   };
 
   return `Generate a concise, household-specific daily air-quality briefing using ONLY the facts inside <VERIFIED_DATA_JSON>.
-Highlight up to 3 priority actions from allowedRecommendationIds, clearly disclose if air quality telemetry is stale or unavailable, remind that indoor sensors are not connected, and never invent numerical claims or override deterministic status flags.
+Highlight up to 3 priority actions from allowedRecommendationIds, clearly disclose if air quality telemetry is stale or unavailable (never advise airing out with outdoor air as safe when telemetry is unavailable), remind that indoor sensors are not connected, preserve infrastructure/location caveats on conditional options, and never invent numerical claims or override deterministic status flags.
 
 <VERIFIED_DATA_JSON>
 ${serializeVerifiedBlock(payload)}

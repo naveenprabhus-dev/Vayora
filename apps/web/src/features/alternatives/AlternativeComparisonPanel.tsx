@@ -18,6 +18,14 @@ export function AlternativeComparisonPanel({
   const impactVisual = getImpactClassificationVisual(comparison.impactClassification);
   const SuitabilityIcon = suitabilityVisual.Icon;
   const ImpactIcon = impactVisual.Icon;
+  const safeSourceUrl = (() => {
+    try {
+      const parsed = new URL(comparison.evidenceReference.sourceUrl);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : null;
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <SurfaceCard
@@ -165,17 +173,19 @@ export function AlternativeComparisonPanel({
         <p className="mt-1 leading-relaxed text-slate-600">
           Limitations: {comparison.evidenceReference.limitations}
         </p>
-        <p className="mt-2">
-          <a
-            href={comparison.evidenceReference.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-semibold text-[#0F5132] underline underline-offset-4 hover:text-emerald-900"
-          >
-            <span>Inspect external reference</span>
-            <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          </a>
-        </p>
+        {safeSourceUrl ? (
+          <p className="mt-2">
+            <a
+              href={safeSourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-[#0F5132] underline underline-offset-4 hover:text-emerald-900"
+            >
+              <span>Inspect external reference</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </a>
+          </p>
+        ) : null}
       </div>
     </SurfaceCard>
   );

@@ -55,7 +55,8 @@ export function DailyBriefingPanel({
 
           <h2
             id="personalized-advisory-heading"
-            className="font-display text-2xl font-bold text-slate-950 text-balance"
+            tabIndex={-1}
+            className="font-display text-2xl font-bold text-slate-950 text-balance focus:outline-none"
           >
             Personalized Daily Briefing &amp; Impact Explorer
           </h2>

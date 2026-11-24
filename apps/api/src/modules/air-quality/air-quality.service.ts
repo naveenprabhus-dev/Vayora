@@ -120,6 +120,7 @@ export interface AirQualityServiceDependencies {
   readonly cacheRepository: AirQualityCacheRepository;
   readonly cacheTtlSeconds: number;
   readonly staleTtlSeconds: number;
+  readonly onHouseholdUpdated?: (ownerUid: string) => void;
 }
 
 export class AirQualityService {
@@ -559,6 +560,8 @@ export class AirQualityService {
       lifestylePreferences: existing.lifestylePreferences,
       onboardingCompleted: existing.onboardingCompleted,
     });
+
+    this.deps.onHouseholdUpdated?.(ownerUid);
 
     return {
       location: {

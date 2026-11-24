@@ -119,8 +119,30 @@ function UrbanAirQualityAppShell({
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSyncingSession, setIsSyncingSession] = useState(false);
   const [airQualitySyncToken, setAirQualitySyncToken] = useState<string | undefined>(undefined);
+  const [activeSectionId, setActiveSectionId] = useState<string>('personalized-advisory-heading');
 
   useDocumentTitle(TITLE_MAP[route]);
+
+  const handleWorkspaceSessionIssue = useCallback(
+    (error: unknown) => {
+      if (!(error instanceof ApiClientError)) {
+        return;
+      }
+      if (error.statusCode === 401) {
+        void authService.logout();
+        setUser(null);
+        setPrincipal(null);
+        setHouseholdProfile(null);
+        setIsEditingProfile(false);
+        setSessionError('Your session expired or was revoked. Please sign in again.');
+        setRoute('login');
+      } else if (error.statusCode === 403 && error.code === 'EMAIL_NOT_VERIFIED') {
+        setPrincipal(null);
+        setRoute('verify-email');
+      }
+    },
+    [authService],
+  );
 
   const hydrateVerifiedWorkspace = useCallback(
     async (verifiedUser: AuthUserSnapshot, termsIso?: string) => {
@@ -254,6 +276,14 @@ function UrbanAirQualityAppShell({
     setStatusMessage(undefined);
     setOobCode(null);
     setRoute(next);
+  }, []);
+
+  const handleSectionJump = useCallback((sectionId: string) => {
+    setActiveSectionId(sectionId);
+    if (typeof document !== 'undefined') {
+      const target = document.getElementById(sectionId);
+      target?.focus();
+    }
   }, []);
 
   return (
@@ -447,56 +477,43 @@ function UrbanAirQualityAppShell({
 
             <nav
               aria-label="Workspace sections"
-              className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 rounded-xl"
+              className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border-y border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800"
             >
-              <a
-                href="#air-quality-location-heading"
-                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
-              >
-                Air Quality Intelligence
-              </a>
-              <span aria-hidden="true" className="text-slate-300">
-                /
-              </span>
-              <a
-                href="#daily-routines-heading"
-                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
-              >
-                Low-Emission Daily Routines
-              </a>
-              <span aria-hidden="true" className="text-slate-300">
-                /
-              </span>
-              <a
-                href="#indoor-air-heading"
-                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
-              >
-                Indoor Air Quality Assistant
-              </a>
-              <span aria-hidden="true" className="text-slate-300">
-                /
-              </span>
-              <a
-                href="#sustainable-alternatives-heading"
-                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
-              >
-                Sustainable Alternatives
-              </a>
-              <span aria-hidden="true" className="text-slate-300">
-                /
-              </span>
-              <a
-                href="#personalized-advisory-heading"
-                className="underline-offset-4 hover:text-[#0F5132] hover:underline"
-              >
-                Personalized Briefing
-              </a>
+              {[
+                { id: 'personalized-advisory-heading', label: 'Personalized Briefing' },
+                { id: 'air-quality-location-heading', label: 'Air Quality Intelligence' },
+                { id: 'daily-routines-heading', label: 'Low-Emission Daily Routines' },
+                { id: 'indoor-air-heading', label: 'Indoor Air Quality Assistant' },
+                { id: 'sustainable-alternatives-heading', label: 'Sustainable Alternatives' },
+              ].map((section, index) => {
+                const isActive = activeSectionId === section.id;
+                return (
+                  <span key={section.id} className="inline-flex items-center gap-x-5">
+                    {index > 0 ? (
+                      <span aria-hidden="true" className="text-slate-300">
+                        /
+                      </span>
+                    ) : null}
+                    <a
+                      href={`#${section.id}`}
+                      aria-current={isActive ? 'location' : undefined}
+                      onClick={() => handleSectionJump(section.id)}
+                      className={`underline-offset-4 hover:text-[#0F5132] hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-[#0F5132] focus-visible:outline-none ${
+                        isActive ? 'text-[#0F5132] underline' : ''
+                      }`}
+                    >
+                      {section.label}
+                    </a>
+                  </span>
+                );
+              })}
             </nav>
 
             <PersonalizedAdvisoryWorkspace
               profile={householdProfile}
               apiClient={apiClient}
               airQualitySyncToken={airQualitySyncToken}
+              onSessionIssue={handleWorkspaceSessionIssue}
             />
 
             <AirQualityDashboard
@@ -506,24 +523,28 @@ function UrbanAirQualityAppShell({
               householdStore={householdStore}
               onProfileUpdated={(updated) => setHouseholdProfile(updated)}
               onTelemetryUpdated={setAirQualitySyncToken}
+              onSessionIssue={handleWorkspaceSessionIssue}
             />
 
             <DailyRoutinesWorkspace
               profile={householdProfile}
               apiClient={apiClient}
               airQualitySyncToken={airQualitySyncToken}
+              onSessionIssue={handleWorkspaceSessionIssue}
             />
 
             <IndoorAirAssistantWorkspace
               profile={householdProfile}
               apiClient={apiClient}
               airQualitySyncToken={airQualitySyncToken}
+              onSessionIssue={handleWorkspaceSessionIssue}
             />
 
             <SustainableAlternativesWorkspace
               profile={householdProfile}
               apiClient={apiClient}
               airQualitySyncToken={airQualitySyncToken}
+              onSessionIssue={handleWorkspaceSessionIssue}
             />
           </div>
         ) : null}

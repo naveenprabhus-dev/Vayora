@@ -42,8 +42,11 @@ Before finalizing dependencies and entrypoints, framework compatibility with the
    - **Starter Tier IAM Constraint**: Preview runtime service accounts on Starter Tier do not carry `roles/firebaseauth.viewer` or Firestore Admin IAM permissions; therefore, server-side `verifyIdToken(token)` verifies token signatures and expiry without IAM, while persistent Firestore writes (`/users/{uid}`, `/users/{uid}/private/info`, `/households/{uid}`) execute through the Firebase Web SDK governed by deployed `firestore.rules`. Express maintains an ownership-isolated `HouseholdRepository` (`PUT/GET /api/v1/household/profile`) and `GET /api/v1/auth/session` boundary.
    - **Console Prerequisite**: Email/Password sign-in must be enabled in Firebase Console (`Authentication > Sign-in method > Email/Password`) on project `regal-center-494708-a3`.
 
-## 4. Data Flow & Communication Boundaries
+## 4. Data Flow, Cross-Module Synchronization & Communication Boundaries
 
 - The browser **never** imports `@google/genai`, `firebase-admin`, or reads server secrets.
 - Session persistence uses Firebase `browserLocalPersistence` (IndexedDB); short-lived ID tokens are refreshed via `getIdToken` and transmitted over HTTPS in `Authorization: Bearer <Firebase ID Token>` headers to `/api/v1/*`.
 - All API responses conform to `{ success: true, data, meta }` or `{ success: false, error, meta }`.
+- **Cross-Module Synchronization (Phase 7 Active)**:
+  - Updating a household profile (`PUT /api/v1/household/profile`) or monitoring location (`PUT /api/v1/air-quality/location`) invokes `invalidateOwnerCaches(ownerUid)` across `routinesCacheRepository`, `indoorCacheRepository`, `alternativesCacheRepository`, and `advisoryCacheRepository` so stale cached outputs never leak across location or lifestyle edits.
+  - On the frontend (`apps/web/src/app/App.tsx`), all 5 modules share a single verified `householdProfile` source of truth, a deduplicated `airQualitySyncToken` (triggered on explicit telemetry refreshes), unified workspace error formatting (`src/lib/errorMessages.ts`) with global `401`/`403` session recovery, and aligned DOM-ordered section navigation with programmatic heading focus management.

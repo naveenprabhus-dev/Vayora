@@ -70,22 +70,27 @@ export const registrationInputSchema = z
       error: 'You must acknowledge the terms and privacy notice to register.',
     }),
   })
+  .strict()
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match.',
     path: ['confirmPassword'],
   });
 
-export const loginInputSchema = z.object({
-  email: emailSchema,
-  password: z
-    .string()
-    .min(1, 'Password is required.')
-    .max(PASSWORD_MAX_LENGTH, `Password must not exceed ${PASSWORD_MAX_LENGTH} characters.`),
-});
+export const loginInputSchema = z
+  .object({
+    email: emailSchema,
+    password: z
+      .string()
+      .min(1, 'Password is required.')
+      .max(PASSWORD_MAX_LENGTH, `Password must not exceed ${PASSWORD_MAX_LENGTH} characters.`),
+  })
+  .strict();
 
-export const forgotPasswordInputSchema = z.object({
-  email: emailSchema,
-});
+export const forgotPasswordInputSchema = z
+  .object({
+    email: emailSchema,
+  })
+  .strict();
 
 export const passwordResetConfirmSchema = z
   .object({
@@ -93,6 +98,7 @@ export const passwordResetConfirmSchema = z
     newPassword: strongPasswordSchema,
     confirmNewPassword: z.string().min(1, 'Please confirm your new password.'),
   })
+  .strict()
   .refine((data) => data.newPassword === data.confirmNewPassword, {
     message: 'Passwords do not match.',
     path: ['confirmNewPassword'],

@@ -13,16 +13,30 @@ import { ADVISORY_IMPACT_LABELS } from '../advisory.constants.ts';
 
 function sanitizePromptText(value: string, maxLength = 220): string {
   const withoutControls = Array.from(value)
-    .map((char) => (char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 ? ' ' : char))
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      if (
+        code < 32 ||
+        (code >= 0x7f && code <= 0x9f) ||
+        (code >= 0x202a && code <= 0x202e) ||
+        (code >= 0x2066 && code <= 0x2069)
+      ) {
+        return ' ';
+      }
+      return char;
+    })
     .join('');
 
   return withoutControls
     .replaceAll('<', '(')
     .replaceAll('>', ')')
+    .replaceAll('```', ' ')
+    .replace(/\[\/?\s*inst\s*\]/gi, '[filtered]')
     .replace(
-      /\b(ignore\s+(all\s+)?previous|system\s*:|assistant\s*:|developer\s*:)\b/gi,
+      /\b(?:ignore|disregard|forget|override)\s+(?:all\s+)?(?:previous|prior|earlier|system|safety)\b(?:\s+instructions?)?/gi,
       '[filtered]',
     )
+    .replace(/\b(?:you\s+are\s+now|system\s*:|assistant\s*:|developer\s*:)\b/gi, '[filtered]')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLength);
@@ -178,6 +192,9 @@ export function buildMinimizedAdvisoryContext(input: {
     });
 
     const impactCategory = mapAlternativeImpactCategory(alt.impactClassification);
+    const combinedLimitations = alt.infrastructureConditionality
+      ? `${alt.tradeoffsAndLimitations} ${alt.infrastructureConditionality}`
+      : alt.tradeoffsAndLimitations;
     recommendations.push({
       recommendationId: alt.id,
       sourceModule: 'alternatives',
@@ -188,7 +205,7 @@ export function buildMinimizedAdvisoryContext(input: {
       impactCategoryLabel: ADVISORY_IMPACT_LABELS[impactCategory],
       summary: sanitizePromptText(alt.suggestedAlternative, 240),
       whyRecommended: sanitizePromptText(alt.whyPreferable, 260),
-      limitations: sanitizePromptText(alt.tradeoffsAndLimitations, 240),
+      limitations: sanitizePromptText(combinedLimitations, 320),
       evidenceIds: [evidenceId, 'EV-OPEN-METEO'],
     });
   }
