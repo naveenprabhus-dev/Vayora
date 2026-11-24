@@ -1,11 +1,46 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-const HAS_FIREBASE_CLIENT_CONFIG =
-  fs.existsSync(path.resolve(process.cwd(), 'firebase-applet-config.json')) ||
-  Boolean(process.env.VITE_FIREBASE_API_KEY);
+async function isTargetAppFirebaseConfigured(page: Page): Promise<boolean> {
+  if (
+    fs.existsSync(path.resolve(process.cwd(), 'firebase-applet-config.json')) ||
+    Boolean(process.env.VITE_FIREBASE_API_KEY)
+  ) {
+    return true;
+  }
+
+  const runtimeRaw = await page
+    .locator('#vayora-runtime-config')
+    .textContent()
+    .catch(() => null);
+  if (runtimeRaw) {
+    try {
+      const parsed = JSON.parse(runtimeRaw) as Record<string, unknown>;
+      if (
+        typeof parsed.apiKey === 'string' &&
+        parsed.apiKey.length > 0 &&
+        typeof parsed.projectId === 'string' &&
+        parsed.projectId.length > 0 &&
+        typeof parsed.appId === 'string' &&
+        parsed.appId.length > 0
+      ) {
+        return true;
+      }
+    } catch {
+      // Ignore malformed runtime payload
+    }
+  }
+
+  const devFirebaseRes = await page.request.get('/apps/web/src/lib/firebase.ts').catch(() => null);
+  if (devFirebaseRes?.ok()) {
+    const body = await devFirebaseRes.text();
+    return /"VITE_FIREBASE_API_KEY"\s*:\s*"[^"]+"/.test(body);
+  }
+
+  return false;
+}
 
 test.describe('Phase 1 Auth Flows, Validation & Accessibility (Playwright)', () => {
   test('validates registration form, updates password strength meter, toggles password visibility, and passes WCAG 2.2 AA', async ({
@@ -63,6 +98,7 @@ test.describe('Phase 1 Auth Flows, Validation & Accessibility (Playwright)', () 
     });
 
     await page.goto('/');
+    const hasFirebaseConfig = await isTargetAppFirebaseConfigured(page);
     await page.getByRole('button', { name: 'Forgot password?' }).click();
 
     await expect(
@@ -72,7 +108,7 @@ test.describe('Phase 1 Auth Flows, Validation & Accessibility (Playwright)', () 
     await page.getByLabel(/Email address/).fill('nobody@household.org');
     await page.getByRole('button', { name: 'Send reset instructions' }).click();
 
-    if (HAS_FIREBASE_CLIENT_CONFIG) {
+    if (hasFirebaseConfig) {
       await expect(page.getByRole('status')).toContainText(
         'If an account exists for that email address, password reset instructions have been sent.',
       );

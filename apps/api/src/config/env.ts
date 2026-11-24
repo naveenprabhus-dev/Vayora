@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+import {
+  buildPublicFirebaseClientConfig,
+  type PublicFirebaseClientConfig,
+} from './firebasePublicConfig.ts';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -11,6 +15,13 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional().default(''),
   GEMINI_MODEL_PRIMARY: z.string().min(1).default('gemini-4-hydrogen'),
   FIREBASE_PROJECT_ID: z.string().optional().default(''),
+  VITE_FIREBASE_API_KEY: z.string().optional().default(''),
+  VITE_FIREBASE_AUTH_DOMAIN: z.string().optional().default(''),
+  VITE_FIREBASE_PROJECT_ID: z.string().optional().default(''),
+  VITE_FIREBASE_APP_ID: z.string().optional().default(''),
+  VITE_FIREBASE_STORAGE_BUCKET: z.string().optional().default(''),
+  VITE_FIREBASE_MESSAGING_SENDER_ID: z.string().optional().default(''),
+  VITE_FIREBASE_DATABASE_ID: z.string().optional().default(''),
   ADMIN_EMAILS: z.string().optional().default(''),
   COORDINATOR_EMAILS: z.string().optional().default(''),
   AIR_QUALITY_API_PROVIDER: z.enum(['open-meteo', 'airnow', 'iqair']).default('open-meteo'),
@@ -41,6 +52,7 @@ export interface AppConfig {
   readonly geminiApiKey: string;
   readonly geminiModelPrimary: string;
   readonly firebaseProjectId: string;
+  readonly firebaseWebConfig: PublicFirebaseClientConfig;
   readonly adminEmails: readonly string[];
   readonly coordinatorEmails: readonly string[];
   readonly airQualityApiProvider: 'open-meteo' | 'airnow' | 'iqair';
@@ -103,12 +115,25 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
         );
 
   const explicitProjectId = data.FIREBASE_PROJECT_ID.trim();
+  const explicitWebProjectId = data.VITE_FIREBASE_PROJECT_ID.trim();
   const resolvedProjectId =
     explicitProjectId && !explicitProjectId.startsWith('REPLACE_WITH')
       ? explicitProjectId
-      : data.NODE_ENV === 'test'
-        ? ''
-        : readAppletFirebaseProjectId();
+      : explicitWebProjectId && !explicitWebProjectId.startsWith('REPLACE_WITH')
+        ? explicitWebProjectId
+        : data.NODE_ENV === 'test'
+          ? ''
+          : readAppletFirebaseProjectId();
+
+  const firebaseWebConfig = buildPublicFirebaseClientConfig({
+    VITE_FIREBASE_API_KEY: data.VITE_FIREBASE_API_KEY,
+    VITE_FIREBASE_AUTH_DOMAIN: data.VITE_FIREBASE_AUTH_DOMAIN,
+    VITE_FIREBASE_PROJECT_ID: data.VITE_FIREBASE_PROJECT_ID,
+    VITE_FIREBASE_APP_ID: data.VITE_FIREBASE_APP_ID,
+    VITE_FIREBASE_STORAGE_BUCKET: data.VITE_FIREBASE_STORAGE_BUCKET,
+    VITE_FIREBASE_MESSAGING_SENDER_ID: data.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    VITE_FIREBASE_DATABASE_ID: data.VITE_FIREBASE_DATABASE_ID,
+  });
 
   return {
     nodeEnv: data.NODE_ENV,
@@ -119,6 +144,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     geminiApiKey: data.GEMINI_API_KEY,
     geminiModelPrimary: data.GEMINI_MODEL_PRIMARY,
     firebaseProjectId: resolvedProjectId,
+    firebaseWebConfig,
     adminEmails: parseCsvList(data.ADMIN_EMAILS),
     coordinatorEmails: parseCsvList(data.COORDINATOR_EMAILS),
     airQualityApiProvider: data.AIR_QUALITY_API_PROVIDER,

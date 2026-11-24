@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
-import fs from 'node:fs';
 import path from 'node:path';
 import { createServer as createViteServer } from 'vite';
 import { loadConfig } from './apps/api/src/config/env.ts';
+import { createProductionSpaRouter } from './apps/api/src/config/firebasePublicConfig.ts';
 import { buildCorsOptions, buildHelmetOptions } from './apps/api/src/config/security.ts';
 import { createApiRouter } from './apps/api/src/app.ts';
 import cors from 'cors';
@@ -30,15 +30,7 @@ async function startUnifiedServer(): Promise<void> {
     app.use(vite.middlewares);
   } else {
     const distDir = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
-      const indexPath = path.join(distDir, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        res.status(404).send('Production build not found.');
-      }
-    });
+    app.use(createProductionSpaRouter(distDir, config.firebaseWebConfig));
   }
 
   const server = app.listen(config.port, '0.0.0.0', () => {

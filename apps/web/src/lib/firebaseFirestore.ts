@@ -1,5 +1,10 @@
 import { doc, getDocFromServer, getFirestore, type Firestore } from 'firebase/firestore';
-import { getFirebaseApp, getFirebaseAuth, isFirebaseClientConfigured } from './firebase.ts';
+import {
+  getFirebaseApp,
+  getFirebaseAuth,
+  isFirebaseClientConfigured,
+  resolveFirebaseClientConfig,
+} from './firebase.ts';
 
 export enum OperationType {
   CREATE = 'create',
@@ -32,31 +37,19 @@ export interface FirestoreErrorInfo {
 let cachedDb: Firestore | null = null;
 let connectionCheckRan = false;
 
-const localFirebaseConfigs = import.meta.glob<{ readonly firestoreDatabaseId?: string }>(
-  '../../../../firebase-applet-config.json',
-  { eager: true, import: 'default' },
-);
-const firebaseConfig = Object.values(localFirebaseConfigs)[0] ?? {};
-
-function resolveDatabaseId(): string {
-  const envVal = import.meta.env.VITE_FIREBASE_DATABASE_ID;
-  if (typeof envVal === 'string' && envVal.trim().length > 0) {
-    return envVal.trim();
-  }
-  return typeof firebaseConfig.firestoreDatabaseId === 'string'
-    ? firebaseConfig.firestoreDatabaseId.trim()
-    : '';
-}
-
 export function getFirestoreDb(): Firestore {
   if (cachedDb) {
     return cachedDb;
   }
-  const databaseId = resolveDatabaseId();
-  cachedDb = databaseId
-    ? getFirestore(getFirebaseApp(), databaseId)
-    : getFirestore(getFirebaseApp());
+  const { databaseId } = resolveFirebaseClientConfig();
+  const app = getFirebaseApp();
+  cachedDb = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
   return cachedDb;
+}
+
+export function resetFirestoreClientCacheForTests(): void {
+  cachedDb = null;
+  connectionCheckRan = false;
 }
 
 export async function testFirestoreConnection(): Promise<void> {

@@ -66,6 +66,13 @@ export default defineConfig(() => {
             if (id.includes('node_modules/zod')) {
               return 'vendor-validation';
             }
+            if (
+              id.includes('apps/web/src/lib/errorMessages') ||
+              id.includes('apps/web/src/lib/profileSync') ||
+              id.includes('apps/web/src/lib/severityStyles')
+            ) {
+              return 'workspace-helpers';
+            }
             return undefined;
           },
         },
