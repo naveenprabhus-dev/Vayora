@@ -42,15 +42,14 @@ export function ResetPasswordForm({
       return undefined;
     }
     let active = true;
-    void authService
-      .verifyResetCode(oobCode)
-      .then(() => {
+    async function verifyCode() {
+      try {
+        await authService.verifyResetCode(oobCode);
         if (active) {
           setCodeStatus('valid');
           setCodeError(null);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (active) {
           setCodeStatus('invalid');
           setCodeError(
@@ -59,7 +58,9 @@ export function ResetPasswordForm({
               : 'This password reset link is invalid or has expired.',
           );
         }
-      });
+      }
+    }
+    void verifyCode();
     return () => {
       active = false;
     };

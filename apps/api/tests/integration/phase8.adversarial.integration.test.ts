@@ -195,17 +195,16 @@ describe('Phase 8 Adversarial Security & Resilience Suite (Integration)', () => 
     ];
 
     for (const endpoint of protectedEndpoints) {
-      const noAuth = await request(app)[endpoint.method](endpoint.path);
+      const api = request(app);
+      const noAuth = await api[endpoint.method](endpoint.path);
       expect(noAuth.status).toBe(401);
 
-      const revoked = await request(app)
-        [endpoint.method](endpoint.path)
-        .set('Authorization', 'Bearer expired-revoked-token');
+      const revokedReq = api[endpoint.method](endpoint.path);
+      const revoked = await revokedReq.set('Authorization', 'Bearer expired-revoked-token');
       expect(revoked.status).toBe(401);
 
-      const unverified = await request(app)
-        [endpoint.method](endpoint.path)
-        .set('Authorization', 'Bearer token-unverified');
+      const unverifiedReq = api[endpoint.method](endpoint.path);
+      const unverified = await unverifiedReq.set('Authorization', 'Bearer token-unverified');
       expect(unverified.status).toBe(403);
       expect(unverified.body.error.code).toBe('EMAIL_NOT_VERIFIED');
     }
@@ -338,5 +337,60 @@ describe('Phase 8 Adversarial Security & Resilience Suite (Integration)', () => 
     expect(JSON.stringify(timeoutRes.body)).not.toContain(
       'super-secret-server-gemini-key-should-never-leak',
     );
+  });
+
+  it('maintains strict cross-user cache and state isolation across all 5 modules', async () => {
+    const app = createAdversarialTestApp();
+
+    await request(app)
+      .put('/api/v1/household/profile')
+      .set('Authorization', 'Bearer token-alice')
+      .send(VALID_PROFILE)
+      .expect(200);
+
+    await request(app)
+      .put('/api/v1/household/profile')
+      .set('Authorization', 'Bearer token-bob')
+      .send({
+        ...VALID_PROFILE,
+        city: 'Gdansk',
+        neighborhood: 'Wrzeszcz',
+        postalPrefix: '80-2',
+        primaryCommuteMode: 'public_transit',
+        heatingType: 'heat_pump',
+      })
+      .expect(200);
+
+    const [aliceAq, aliceRoutines, aliceIndoor, aliceAlts, aliceBriefing] = await Promise.all([
+      request(app).get('/api/v1/air-quality/current').set('Authorization', 'Bearer token-alice'),
+      request(app).get('/api/v1/routines/daily').set('Authorization', 'Bearer token-alice'),
+      request(app).get('/api/v1/indoor-air/guidance').set('Authorization', 'Bearer token-alice'),
+      request(app)
+        .get('/api/v1/alternatives/recommendations')
+        .set('Authorization', 'Bearer token-alice'),
+      request(app).get('/api/v1/advisory/briefing').set('Authorization', 'Bearer token-alice'),
+    ]);
+
+    const [bobAq, bobRoutines, bobIndoor, bobAlts, bobBriefing] = await Promise.all([
+      request(app).get('/api/v1/air-quality/current').set('Authorization', 'Bearer token-bob'),
+      request(app).get('/api/v1/routines/daily').set('Authorization', 'Bearer token-bob'),
+      request(app).get('/api/v1/indoor-air/guidance').set('Authorization', 'Bearer token-bob'),
+      request(app)
+        .get('/api/v1/alternatives/recommendations')
+        .set('Authorization', 'Bearer token-bob'),
+      request(app).get('/api/v1/advisory/briefing').set('Authorization', 'Bearer token-bob'),
+    ]);
+
+    expect(aliceAq.body.data.location.city).toBe('Krakow');
+    expect(aliceRoutines.body.data.location.city).toBe('Krakow');
+    expect(aliceIndoor.body.data.location.city).toBe('Krakow');
+    expect(aliceAlts.body.data.location.city).toBe('Krakow');
+    expect(aliceBriefing.body.data.location.city).toBe('Krakow');
+
+    expect(bobAq.body.data.location.city).toBe('Gdansk');
+    expect(bobRoutines.body.data.location.city).toBe('Gdansk');
+    expect(bobIndoor.body.data.location.city).toBe('Gdansk');
+    expect(bobAlts.body.data.location.city).toBe('Gdansk');
+    expect(bobBriefing.body.data.location.city).toBe('Gdansk');
   });
 });

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import { formatWorkspaceError } from '../../lib/errorMessages.ts';
+import { buildProfileSyncKey } from '../../lib/profileSync.ts';
 import { AlternativeComparisonPanel } from './AlternativeComparisonPanel.tsx';
 import { AlternativeRecommendationCard } from './AlternativeRecommendationCard.tsx';
 import {
@@ -49,6 +50,8 @@ export function SustainableAlternativesWorkspace({
   const [isComparing, setIsComparing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const profileSyncKey = buildProfileSyncKey(profile);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -80,7 +83,7 @@ export function SustainableAlternativesWorkspace({
       }
     }
 
-    if (profile.country && profile.city && airQualitySyncToken !== '__never__') {
+    if (profileSyncKey.length > 0 && airQualitySyncToken !== '__never__') {
       void loadAlternatives();
     }
 
@@ -95,18 +98,7 @@ export function SustainableAlternativesWorkspace({
     relevanceFilter,
     impactFilter,
     practicalityFilter,
-    profile.country,
-    profile.city,
-    profile.neighborhood,
-    profile.postalPrefix,
-    profile.primaryCommuteMode,
-    profile.outdoorActivityPattern,
-    profile.heatingType,
-    profile.ventilationContext,
-    profile.hasIndoorAirPurifier,
-    profile.householdSize,
-    profile.householdComposition,
-    profile.lifestylePreferences.preferredGuidanceFocus,
+    profileSyncKey,
     onSessionIssue,
   ]);
 

@@ -6,7 +6,7 @@ import {
 } from '@uaqa/contracts';
 import { Timestamp, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import type { AuthUserSnapshot } from './authService.ts';
-import { OperationType, getFirestoreDb, handleFirestoreError } from './firebase.ts';
+import { OperationType, getFirestoreDb, handleFirestoreError } from './firebaseFirestore.ts';
 
 export interface HouseholdStore {
   syncVerifiedUserAccount(user: AuthUserSnapshot, termsAcceptedAtIso?: string): Promise<void>;

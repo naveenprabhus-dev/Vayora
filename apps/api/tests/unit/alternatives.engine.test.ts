@@ -293,9 +293,11 @@ describe('Phase 5 Sustainable Alternatives Engine', () => {
       location: snapshot.location,
     });
     const transitItem = catalog.find((item) => item.id === 'transport-public-transit');
-    expect(transitItem).toBeDefined();
+    if (!transitItem) {
+      throw new Error('Expected transport-public-transit alternative in catalog');
+    }
 
-    const evComparison = buildAlternativeComparison(transitItem!, 'solo_ev');
+    const evComparison = buildAlternativeComparison(transitItem, 'solo_ev');
     expect(evComparison.selectedBaselineId).toBe('solo_ev');
     expect(evComparison.currentChoiceSummary).toMatch(/battery electric/i);
     expect(evComparison.directAirQualityAndEmissionsEffect).toMatch(
@@ -354,7 +356,7 @@ describe('Phase 5 Sustainable Alternatives Engine', () => {
         transparency: snapshot.transparency,
       },
       alternatives: catalog,
-      featuredComparison: buildAlternativeComparison(catalog[0]!),
+      featuredComparison: catalog[0] ? buildAlternativeComparison(catalog[0]) : null,
       provenanceAndDisclosures: {
         dataSources: [],
         methodologicalPrinciples: [],

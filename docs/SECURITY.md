@@ -53,6 +53,7 @@
 ## 6. External Environmental Provider Isolation (Phase 2 Active)
 
 - **Server-Only Provider Communication**: All Open-Meteo Air Quality and Geocoding requests execute exclusively inside `apps/api/src/modules/air-quality/providers/open-meteo.provider.ts` with `AbortController` timeouts (5,000 ms), bounded single transient retries, 512 KB response size caps, and strict Zod validation. The browser never communicates with upstream provider endpoints directly.
+- **Provider Attribution & Licensing Boundary**: Telemetry responses preserve `Open-Meteo CC BY 4.0` attribution and transparent model-forecast labeling. Do not assume free-tier commercial, hackathon, or public demo eligibility without confirming current Open-Meteo license terms or replacing the swappable `AirQualityProvider`/`GeocodingProvider` adapter with a licensed key-backed server provider.
 - **Strict Query & Coordinate Validation**: `airQualityQuerySchema` enforces paired numeric `latitude` (`[-90, 90]`) and `longitude` (`[-180, 180]`), integer `hours` (`1..48`), valid AQI scale identifiers, and `.strict()` unknown-key rejection (blocking `userId`/`ownerUid` tampering).
 - **Protected Routes & Ownership**: Every `/api/v1/air-quality/*` endpoint enforces `authenticate`, `requireVerifiedEmail`, and `requirePermission('air_quality:read')` (or `'profile:write_own'` for `PUT /location`), resolving saved household locations exclusively from authenticated `req.principal.uid`.
 

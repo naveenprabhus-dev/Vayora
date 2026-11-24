@@ -304,33 +304,34 @@ function createAlternativesPayload(options?: {
       },
     },
     alternatives: filtered,
-    featuredComparison: first
-      ? {
-          alternativeId: first.id,
-          alternativeTitle: first.title,
-          category: first.category,
-          impactClassification: first.impactClassification,
-          impactClassificationLabel: first.impactClassificationLabel,
-          affordabilityTier: first.affordabilityTier,
-          affordabilityLabel: first.affordabilityLabel,
-          relevanceScope: first.relevanceScope,
-          suitabilityStatus: first.suitabilityStatus,
-          selectedBaselineId: first.baselineOptions[0]!.id,
-          selectedBaselineLabel: first.baselineOptions[0]!.label,
-          availableBaselines: first.baselineOptions,
-          currentChoiceSummary: first.baselineOptions[0]!.summary,
-          suggestedAlternativeSummary: first.suggestedAlternative,
-          whyPreferable: first.whyPreferable,
-          directAirQualityAndEmissionsEffect: first.directAqVsBroaderNote,
-          personalExposureEffect: first.baselineOptions[0]!.exposureRiskNote,
-          broaderSustainabilityEffect: first.qualitativeComparisonNote,
-          ghgVsLocalPollutantDistinction: first.ghgVsLocalPollutantNote,
-          costAndAccessibility: first.costAndAccessibilityNote,
-          tradeoffsAndLimitations: first.tradeoffsAndLimitations,
-          infrastructureConditionality: first.infrastructureConditionality,
-          evidenceReference: first.evidenceReference,
-        }
-      : null,
+    featuredComparison:
+      first && first.baselineOptions[0]
+        ? {
+            alternativeId: first.id,
+            alternativeTitle: first.title,
+            category: first.category,
+            impactClassification: first.impactClassification,
+            impactClassificationLabel: first.impactClassificationLabel,
+            affordabilityTier: first.affordabilityTier,
+            affordabilityLabel: first.affordabilityLabel,
+            relevanceScope: first.relevanceScope,
+            suitabilityStatus: first.suitabilityStatus,
+            selectedBaselineId: first.baselineOptions[0].id,
+            selectedBaselineLabel: first.baselineOptions[0].label,
+            availableBaselines: first.baselineOptions,
+            currentChoiceSummary: first.baselineOptions[0].summary,
+            suggestedAlternativeSummary: first.suggestedAlternative,
+            whyPreferable: first.whyPreferable,
+            directAirQualityAndEmissionsEffect: first.directAqVsBroaderNote,
+            personalExposureEffect: first.baselineOptions[0].exposureRiskNote,
+            broaderSustainabilityEffect: first.qualitativeComparisonNote,
+            ghgVsLocalPollutantDistinction: first.ghgVsLocalPollutantNote,
+            costAndAccessibility: first.costAndAccessibilityNote,
+            tradeoffsAndLimitations: first.tradeoffsAndLimitations,
+            infrastructureConditionality: first.infrastructureConditionality,
+            evidenceReference: first.evidenceReference,
+          }
+        : null,
     provenanceAndDisclosures: {
       dataSources: ['Household profile', 'Open-Meteo'],
       methodologicalPrinciples: [
@@ -589,11 +590,18 @@ async function setupAlternativesE2ERoutes(
 
   await page.route('**/api/v1/alternatives/compare*', async (route) => {
     const url = new URL(route.request().url());
-    const alternativeId = url.searchParams.get('alternativeId') ?? E2E_ITEMS[0]!.id;
+    const fallbackItem = E2E_ITEMS[0];
+    if (!fallbackItem) {
+      throw new Error('Expected E2E_ITEMS to contain at least one entry');
+    }
+    const alternativeId = url.searchParams.get('alternativeId') ?? fallbackItem.id;
     const currentOption = url.searchParams.get('currentOption');
-    const item = E2E_ITEMS.find((entry) => entry.id === alternativeId) ?? E2E_ITEMS[0]!;
+    const item = E2E_ITEMS.find((entry) => entry.id === alternativeId) ?? fallbackItem;
     const baseline =
-      item.baselineOptions.find((entry) => entry.id === currentOption) ?? item.baselineOptions[0]!;
+      item.baselineOptions.find((entry) => entry.id === currentOption) ?? item.baselineOptions[0];
+    if (!baseline) {
+      throw new Error(`Expected baseline options for ${item.id}`);
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

@@ -195,7 +195,10 @@ function createComparison(
   baselineId?: string,
 ): AlternativeComparisonView {
   const baseline =
-    item.baselineOptions.find((option) => option.id === baselineId) ?? item.baselineOptions[0]!;
+    item.baselineOptions.find((option) => option.id === baselineId) ?? item.baselineOptions[0];
+  if (!baseline) {
+    throw new Error(`Expected baseline options for ${item.id}`);
+  }
   return {
     alternativeId: item.id,
     alternativeTitle: item.title,
@@ -411,8 +414,10 @@ function buildMockClient(overrides?: Partial<WebApiClient>): WebApiClient {
       createMockAlternativesResponse(query !== undefined ? { query } : undefined),
     ),
     compareSustainableAlternative: vi.fn(async (query: AlternativesCompareQueryInput) => {
-      const found =
-        SAMPLE_ITEMS.find((item) => item.id === query.alternativeId) ?? SAMPLE_ITEMS[0]!;
+      const found = SAMPLE_ITEMS.find((item) => item.id === query.alternativeId) ?? SAMPLE_ITEMS[0];
+      if (!found) {
+        throw new Error('Expected SAMPLE_ITEMS to contain at least one entry');
+      }
       return createComparison(found, query.currentOption);
     }),
     refreshSustainableAlternatives: vi.fn(async () => createMockAlternativesResponse()),
@@ -474,7 +479,11 @@ describe('SustainableAlternativesWorkspace Component', () => {
       await screen.findByText(/No sustainable alternatives match your current filter combination/i),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Reset all filters/i })[0]!);
+    const resetButton = screen.getAllByRole('button', { name: /Reset all filters/i })[0];
+    if (!resetButton) {
+      throw new Error('Expected Reset all filters button');
+    }
+    fireEvent.click(resetButton);
     await waitFor(() => {
       expect(
         screen.getByTestId('alternative-card-transport-trip-chaining-no-idling'),
@@ -488,8 +497,11 @@ describe('SustainableAlternativesWorkspace Component', () => {
 
     await screen.findByTestId('sustainable-alternatives-workspace');
 
-    const compareButtons = screen.getAllByRole('button', { name: 'Compare side-by-side' });
-    fireEvent.click(compareButtons[0]!);
+    const compareButton = screen.getAllByRole('button', { name: 'Compare side-by-side' })[0];
+    if (!compareButton) {
+      throw new Error('Expected Compare side-by-side button');
+    }
+    fireEvent.click(compareButton);
 
     await waitFor(() => {
       expect(apiClient.compareSustainableAlternative).toHaveBeenCalledWith({

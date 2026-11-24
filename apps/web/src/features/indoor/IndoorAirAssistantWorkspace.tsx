@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import { formatWorkspaceError } from '../../lib/errorMessages.ts';
+import { buildProfileSyncKey } from '../../lib/profileSync.ts';
 import { IndoorActionPlanSection } from './IndoorActionPlanSection.tsx';
 import { IndoorEnvironmentSection } from './IndoorEnvironmentSection.tsx';
 import { PollutionSourcesSection } from './PollutionSourcesSection.tsx';
@@ -30,6 +31,9 @@ export function IndoorAirAssistantWorkspace({
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const profileSyncKey = buildProfileSyncKey(profile);
+  const hasRequiredIndoorSetup = Boolean(profile.ventilationContext && profile.heatingType);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,10 +60,8 @@ export function IndoorAirAssistantWorkspace({
     }
 
     if (
-      profile.country &&
-      profile.city &&
-      profile.ventilationContext &&
-      profile.heatingType &&
+      profileSyncKey.length > 0 &&
+      hasRequiredIndoorSetup &&
       airQualitySyncToken !== '__never__'
     ) {
       void loadIndoorGuidance();
@@ -72,16 +74,8 @@ export function IndoorAirAssistantWorkspace({
     apiClient,
     scenario,
     airQualitySyncToken,
-    profile.country,
-    profile.city,
-    profile.neighborhood,
-    profile.postalPrefix,
-    profile.ventilationContext,
-    profile.hasIndoorAirPurifier,
-    profile.heatingType,
-    profile.householdSize,
-    profile.householdComposition,
-    profile.lifestylePreferences.preferredGuidanceFocus,
+    profileSyncKey,
+    hasRequiredIndoorSetup,
     onSessionIssue,
   ]);
 

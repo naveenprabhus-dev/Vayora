@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import { formatWorkspaceError } from '../../lib/errorMessages.ts';
+import { buildProfileSyncKey } from '../../lib/profileSync.ts';
 import { ChoiceComparisonExplainerPanel } from './ChoiceComparisonExplainerPanel.tsx';
 import { DailyBriefingPanel } from './DailyBriefingPanel.tsx';
 import { RecommendationExplainerPanel } from './RecommendationExplainerPanel.tsx';
@@ -73,6 +74,8 @@ export function PersonalizedAdvisoryWorkspace({
     setCompareError(null);
   }, []);
 
+  const profileSyncKey = buildProfileSyncKey(profile);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -97,7 +100,7 @@ export function PersonalizedAdvisoryWorkspace({
       }
     }
 
-    if (profile.country && profile.city && airQualitySyncToken !== '__never__') {
+    if (profileSyncKey.length > 0 && airQualitySyncToken !== '__never__') {
       void loadBriefing();
     }
 
@@ -107,18 +110,7 @@ export function PersonalizedAdvisoryWorkspace({
   }, [
     apiClient,
     airQualitySyncToken,
-    profile.country,
-    profile.city,
-    profile.neighborhood,
-    profile.postalPrefix,
-    profile.primaryCommuteMode,
-    profile.outdoorActivityPattern,
-    profile.ventilationContext,
-    profile.hasIndoorAirPurifier,
-    profile.heatingType,
-    profile.householdSize,
-    profile.householdComposition,
-    profile.lifestylePreferences.preferredGuidanceFocus,
+    profileSyncKey,
     selectedFocus,
     syncDefaultSelections,
     onSessionIssue,

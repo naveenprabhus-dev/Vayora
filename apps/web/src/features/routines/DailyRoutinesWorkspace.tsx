@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import { formatWorkspaceError } from '../../lib/errorMessages.ts';
+import { buildProfileSyncKey } from '../../lib/profileSync.ts';
 import { BetterTimeWindowsPanel } from './BetterTimeWindowsPanel.tsx';
 import { CommuteStrategyPanel } from './CommuteStrategyPanel.tsx';
 import {
@@ -41,21 +42,7 @@ export function DailyRoutinesWorkspace({
     undefined,
   );
 
-  const profileSyncKey = JSON.stringify({
-    country: profile.country,
-    city: profile.city,
-    neighborhood: profile.neighborhood,
-    postalPrefix: profile.postalPrefix,
-    zone: profile.locationPreferences.primaryZoneType,
-    size: profile.householdSize,
-    composition: profile.householdComposition,
-    commute: profile.primaryCommuteMode,
-    outdoor: profile.outdoorActivityPattern,
-    ventilation: profile.ventilationContext,
-    purifier: profile.hasIndoorAirPurifier,
-    heating: profile.heatingType,
-    focus: profile.lifestylePreferences.preferredGuidanceFocus,
-  });
+  const profileSyncKey = buildProfileSyncKey(profile);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +70,9 @@ export function DailyRoutinesWorkspace({
       }
     }
 
-    void loadRoutines();
+    if (profileSyncKey.length > 0 && airQualitySyncToken !== '__never__') {
+      void loadRoutines();
+    }
     return () => {
       cancelled = true;
     };
