@@ -4,7 +4,19 @@ import {
   type HouseholdLifestyleInput,
   type HouseholdLifestyleRecord,
 } from '@uaqa/contracts';
-import { Timestamp, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  Timestamp,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import type { AuthUserSnapshot } from './authService.ts';
 import { OperationType, getFirestoreDb, handleFirestoreError } from './firebaseFirestore.ts';
 
@@ -87,11 +99,14 @@ export class FirestoreHouseholdStore implements HouseholdStore {
     const db = getFirestoreDb();
     const path = `households/${uid}`;
     try {
-      const snap = await getDoc(doc(db, 'households', uid));
-      if (!snap.exists()) {
+      const snap = await getDocs(
+        query(collection(db, 'households'), where('ownerUid', '==', uid), limit(1)),
+      );
+      const firstDoc = snap.docs[0];
+      if (!firstDoc || !firstDoc.exists()) {
         return null;
       }
-      const data = snap.data();
+      const data = firstDoc.data();
       const parsed = householdLifestyleRecordSchema.safeParse({
         ownerUid: data.ownerUid,
         country: data.country,
@@ -129,8 +144,10 @@ export class FirestoreHouseholdStore implements HouseholdStore {
     const ref = doc(db, 'households', uid);
 
     try {
-      const existing = await getDoc(ref);
-      if (!existing.exists()) {
+      const existingSnap = await getDocs(
+        query(collection(db, 'households'), where('ownerUid', '==', uid), limit(1)),
+      );
+      if (existingSnap.empty) {
         await setDoc(ref, {
           ownerUid: uid,
           ...validated,

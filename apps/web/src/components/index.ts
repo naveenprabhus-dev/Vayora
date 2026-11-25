@@ -2,6 +2,7 @@ export { AlertBanner, type AlertBannerProps, type AlertTone } from './AlertBanne
 export { Button, type ButtonProps, type ButtonVariant } from './Button.tsx';
 export { CheckboxField, type CheckboxFieldProps } from './CheckboxField.tsx';
 export { FormField, type FormFieldProps } from './FormField.tsx';
+export { PageHeader, type PageHeaderProps } from './PageHeader.tsx';
 export { PasswordInput, type PasswordInputProps } from './PasswordInput.tsx';
 export {
   PasswordStrengthMeter,

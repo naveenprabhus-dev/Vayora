@@ -716,7 +716,7 @@ test.describe('Phase 2 VAYORA Air Quality Intelligence (E2E & WCAG 2.2 AA)', () 
     page,
   }) => {
     await setupHarnessApiRoutes(page, { freshness: 'fresh' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=air-quality');
 
     await expect(page.getByTestId('air-quality-dashboard')).toBeVisible();
     await expect(
@@ -777,12 +777,12 @@ test.describe('Phase 2 VAYORA Air Quality Intelligence (E2E & WCAG 2.2 AA)', () 
     page,
   }) => {
     await setupHarnessApiRoutes(page, { freshness: 'stale' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=air-quality');
     await expect(page.getByText(/Displaying cached air quality readings/i)).toBeVisible();
 
     await page.unrouteAll();
     await setupHarnessApiRoutes(page, { freshness: 'unavailable' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=air-quality');
 
     await expect(page.getByText(/Live air quality data temporarily unavailable/i)).toBeVisible();
     await expect(page.getByTestId('primary-aqi-value')).toHaveText('Unavailable');

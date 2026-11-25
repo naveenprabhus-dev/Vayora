@@ -12,8 +12,7 @@ async function isTargetAppFirebaseConfigured(page: Page): Promise<boolean> {
   }
 
   const runtimeRaw = await page
-    .locator('#vayora-runtime-config')
-    .textContent()
+    .evaluate(() => document.getElementById('vayora-runtime-config')?.textContent ?? null)
     .catch(() => null);
   if (runtimeRaw) {
     try {

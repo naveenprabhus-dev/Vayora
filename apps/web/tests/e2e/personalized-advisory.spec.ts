@@ -678,32 +678,35 @@ test.describe('Phase 6 GenAI Personalization & Impact Explanation Engine (E2E & 
     expect(metricsRes.status()).toBe(401);
   });
 
-  test('renders Personalized Daily Briefing, 6-part Impact Explanation, Compare My Choices, and passes WCAG 2.2 AA', async ({
+  test('renders Personalized Daily Briefing, 6-part Impact Explanation, Compare My Choices on Overview, and passes WCAG 2.2 AA', async ({
     page,
   }) => {
     await setupPhase6E2ERoutes(page, { mode: 'gemini', freshness: 'fresh' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=overview');
 
-    const workspace = page.getByTestId('personalized-advisory-workspace');
-    await expect(workspace).toBeVisible();
-    await expect(workspace.getByTestId('advisory-origin-disclosure')).toContainText(
+    const overview = page.getByTestId('page-overview');
+    await expect(overview).toBeVisible();
+    await expect(overview.getByTestId('advisory-origin-disclosure')).toContainText(
       /AI-generated explanation/i,
     );
 
-    // Click "Why this recommendation?" on first priority action
-    await workspace
+    // Click "Why this recommendation?" on first priority action -> expands explorer lazily
+    await overview
       .getByRole('button', { name: /Why this recommendation\?/i })
       .first()
       .click();
-    const explainResult = workspace.getByTestId('why-recommendation-result');
+    const explorer = overview.getByTestId('overview-impact-explorer');
+    await expect(explorer).toBeVisible();
+
+    const explainResult = explorer.getByTestId('why-recommendation-result');
     await expect(explainResult).toBeVisible();
     await expect(explainResult).toContainText(/1\. Action/i);
     await expect(explainResult).toContainText(/6\. Limitations/i);
     await expect(explainResult).toContainText(/Open-Meteo Air Quality/i);
 
-    // Run Compare My Choices
-    await workspace.getByRole('button', { name: 'Compare my choices' }).click();
-    const compareResult = workspace.getByTestId('compare-choices-result');
+    // Run Compare My Choices inside the explorer
+    await explorer.getByRole('button', { name: 'Compare my choices' }).click();
+    const compareResult = explorer.getByTestId('compare-choices-result');
     await expect(compareResult).toBeVisible();
     await expect(compareResult).toContainText(/Bundled errands vs\. separate cold-start car runs/i);
 
@@ -714,20 +717,20 @@ test.describe('Phase 6 GenAI Personalization & Impact Explanation Engine (E2E & 
     expect(accessibilityScan.violations).toEqual([]);
   });
 
-  test('discloses deterministic fallback and unavailable telemetry cleanly inside advisory workspace', async ({
+  test('discloses deterministic fallback and unavailable telemetry cleanly inside Overview briefing', async ({
     page,
   }) => {
     await setupPhase6E2ERoutes(page, {
       mode: 'deterministic_fallback',
       freshness: 'unavailable',
     });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=overview');
 
-    const workspace = page.getByTestId('personalized-advisory-workspace');
-    await expect(workspace).toBeVisible();
-    await expect(workspace.getByTestId('advisory-origin-disclosure')).toContainText(
+    const overview = page.getByTestId('page-overview');
+    await expect(overview).toBeVisible();
+    await expect(overview.getByTestId('advisory-origin-disclosure')).toContainText(
       /Deterministic fallback explanation/i,
     );
-    await expect(workspace.getByText(/Outdoor air quality data unavailable/i)).toBeVisible();
+    await expect(overview.getByText(/Outdoor air quality data unavailable/i)).toBeVisible();
   });
 });

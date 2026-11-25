@@ -312,8 +312,11 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /households/{householdId} {
       allow get: if isValidId(householdId) &&
-        isVerifiedUser() &&
-        (existing().ownerUid == request.auth.uid || isAdmin());
+        isVerifiedUser() && (
+          isAdmin() ||
+          (resource == null && householdId == request.auth.uid) ||
+          (resource != null && existing().ownerUid == request.auth.uid)
+        );
 
       allow list: if isVerifiedUser() && resource.data.ownerUid == request.auth.uid;
 

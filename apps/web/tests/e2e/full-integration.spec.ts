@@ -526,44 +526,59 @@ async function setupStatefulBackendRoutes(page: Page) {
   return { apiRequestCounts };
 }
 
-test.describe('Phase 7 Full Application Integration & Cross-Module Consistency (Playwright)', () => {
-  test('coordinates all 5 workspaces cleanly on mount, supports profile propagation across modules, eliminates duplicate requests, avoids mobile overflow, and passes WCAG 2.2 AA', async ({
+async function navigateWorkspaceFromShell(
+  page: Page,
+  isMobile: boolean,
+  pageId:
+    | 'overview'
+    | 'air-quality'
+    | 'daily-routines'
+    | 'indoor-air'
+    | 'sustainable-alternatives'
+    | 'household'
+    | 'settings',
+) {
+  if (isMobile) {
+    await page.getByTestId('mobile-menu-trigger').click();
+    await page.getByTestId(`mobile-nav-${pageId}`).click();
+  } else {
+    await page.getByTestId(`sidebar-nav-${pageId}`).click();
+  }
+}
+
+test.describe('Phase 7 Full Application Integration & Multi-Page Consistency (Playwright)', () => {
+  test('opens concisely on Overview without fetching unvisited modules, navigates cleanly across pages, propagates household updates, avoids overflow, and passes WCAG 2.2 AA', async ({
     page,
+    isMobile,
   }) => {
     const { apiRequestCounts } = await setupStatefulBackendRoutes(page);
     await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
 
-    await expect(page.getByTestId('personalized-advisory-workspace')).toBeVisible();
-    await expect(page.getByTestId('air-quality-dashboard')).toBeVisible();
-    await expect(page.getByTestId('daily-routines-workspace')).toBeVisible();
-    await expect(page.getByTestId('indoor-air-assistant-workspace')).toBeVisible();
-    await expect(page.getByTestId('sustainable-alternatives-workspace')).toBeVisible();
+    // Overview is default landing page and renders concise summary only
+    await expect(page.getByTestId('page-overview')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Air Quality Overview/i }),
+    ).toBeVisible();
 
-    // Verify zero duplicate mount requests across all 5 modules
+    // Critical Phase 2 performance invariant: Indoor Air & Alternatives NOT fetched on Overview load
     expect(apiRequestCounts.advisoryBriefing).toBe(1);
     expect(apiRequestCounts.airQualityCurrent).toBe(1);
     expect(apiRequestCounts.routinesDaily).toBe(1);
-    expect(apiRequestCounts.indoorGuidance).toBe(1);
-    expect(apiRequestCounts.alternatives).toBe(1);
+    expect(apiRequestCounts.indoorGuidance).toBe(0);
+    expect(apiRequestCounts.alternatives).toBe(0);
 
-    // Deterministic fallback coexists cleanly with all Phase 2-5 modules
+    // Deterministic fallback banner visible on Overview briefing card
     await expect(page.getByText('Deterministic fallback explanation active')).toBeVisible();
 
-    // Workspace navigation order & focus management
-    const sectionNav = page.getByRole('navigation', { name: 'Workspace sections' });
-    const navTexts = await sectionNav.locator('a').allTextContents();
-    expect(navTexts).toEqual([
-      'Personalized Briefing',
-      'Air Quality Intelligence',
-      'Low-Emission Daily Routines',
-      'Indoor Air Quality Assistant',
-      'Sustainable Alternatives',
-    ]);
+    // Navigate to Indoor Air via shell navigation -> lazy fetches Indoor Air cleanly
+    await navigateWorkspaceFromShell(page, isMobile, 'indoor-air');
+    await expect(page.getByTestId('indoor-air-assistant-workspace')).toBeVisible();
+    expect(apiRequestCounts.indoorGuidance).toBe(1);
 
-    await sectionNav.getByRole('link', { name: 'Indoor Air Quality Assistant' }).click();
-    await expect(page.locator('#indoor-air-heading')).toBeFocused();
+    // Navigate to My Household & edit profile -> propagates Gdansk across all pages
+    await navigateWorkspaceFromShell(page, isMobile, 'household');
+    await expect(page.getByTestId('page-household')).toBeVisible();
 
-    // Edit household profile via wizard & confirm synchronized update across all 5 modules
     await page.getByRole('button', { name: 'Edit preferences' }).click();
     await page.getByLabel(/City/).fill('Gdansk');
     await page.getByLabel(/Neighborhood or district/).fill('Wrzeszcz');
@@ -572,10 +587,22 @@ test.describe('Phase 7 Full Application Integration & Cross-Module Consistency (
     await page.getByRole('button', { name: 'Continue to Step 3' }).click();
     await page.getByRole('button', { name: 'Save updated preferences' }).click();
 
+    await expect(page.getByText(/Wrzeszcz, Gdansk, Poland/).first()).toBeVisible();
+
+    // Verify propagated Gdansk state across Overview, Air Quality, Daily Routines, Indoor Air, and Sustainable Alternatives
+    await navigateWorkspaceFromShell(page, isMobile, 'overview');
     await expect(page.getByText('Personalized briefing in Gdansk')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Wrzeszcz, Gdansk, Poland/ })).toBeVisible();
+
+    await navigateWorkspaceFromShell(page, isMobile, 'air-quality');
+    await expect(page.getByRole('heading', { level: 2, name: /Wrzeszcz, Gdansk, Poland/ })).toBeVisible();
+
+    await navigateWorkspaceFromShell(page, isMobile, 'daily-routines');
     await expect(page.getByText('Daily routines tailored for Gdansk')).toBeVisible();
+
+    await navigateWorkspaceFromShell(page, isMobile, 'indoor-air');
     await expect(page.getByText('Indoor air guidance for Gdansk')).toBeVisible();
+
+    await navigateWorkspaceFromShell(page, isMobile, 'sustainable-alternatives');
     await expect(page.getByText('Sustainable alternatives for Gdansk')).toBeVisible();
 
     // Verify no horizontal overflow on active viewport (desktop & mobile)
@@ -584,7 +611,7 @@ test.describe('Phase 7 Full Application Integration & Cross-Module Consistency (
     );
     expect(hasOverflow).toBe(false);
 
-    // Full-page WCAG 2.2 AA audit across the entire integrated dashboard
+    // Full-page WCAG 2.2 AA audit
     const axeResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();

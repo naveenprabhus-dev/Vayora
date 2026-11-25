@@ -719,7 +719,7 @@ test.describe('Phase 5 Sustainable Alternatives Advisor (E2E & WCAG 2.2 AA)', ()
     page,
   }) => {
     await setupAlternativesE2ERoutes(page, { freshness: 'fresh' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=sustainable-alternatives');
 
     await expect(page.getByTestId('sustainable-alternatives-workspace')).toBeVisible();
     await expect(page.getByTestId('impact-legend-local_emissions')).toBeVisible();
@@ -756,7 +756,7 @@ test.describe('Phase 5 Sustainable Alternatives Advisor (E2E & WCAG 2.2 AA)', ()
     page,
   }) => {
     await setupAlternativesE2ERoutes(page, { freshness: 'unavailable' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=sustainable-alternatives');
 
     await expect(page.getByTestId('sustainable-alternatives-workspace')).toBeVisible();
     await expect(

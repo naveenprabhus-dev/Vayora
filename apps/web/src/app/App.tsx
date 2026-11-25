@@ -1,11 +1,13 @@
 import type { AuthenticatedPrincipal, HouseholdLifestyleRecord } from '@uaqa/contracts';
 import { LogOut, Shield } from 'lucide-react';
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertBanner, Button, SkipLink, SurfaceCard } from '../components/index.ts';
 import { ForgotPasswordForm } from '../features/auth/ForgotPasswordForm.tsx';
 import { LoginForm } from '../features/auth/LoginForm.tsx';
 import { RegisterForm } from '../features/auth/RegisterForm.tsx';
 import { VerifyEmailScreen } from '../features/auth/VerifyEmailScreen.tsx';
+import { getWorkspaceNavItem, type WorkspacePageId } from '../features/navigation/navConfig.ts';
+import { WorkspaceShell } from '../features/navigation/WorkspaceShell.tsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
 import { ApiClientError, createApiClient, type WebApiClient } from '../lib/apiClient.ts';
 import {
@@ -14,7 +16,15 @@ import {
   type AuthUserSnapshot,
 } from '../lib/authService.ts';
 import type { HouseholdStore } from '../lib/householdStore.ts';
+import { createCachedWorkspaceApiClient } from '../lib/workspaceApiCache.ts';
 import { ErrorBoundary } from './ErrorBoundary.tsx';
+import {
+  buildPublicUrl,
+  buildWorkspaceUrl,
+  parseWorkspacePageFromLocation,
+  readInitialUrlState,
+  type AppRoute,
+} from './routing.ts';
 
 const ResetPasswordForm = lazy(() =>
   import('../features/auth/ResetPasswordForm.tsx').then((mod) => ({
@@ -26,34 +36,39 @@ const HouseholdOnboardingWizard = lazy(() =>
     default: mod.HouseholdOnboardingWizard,
   })),
 );
-const VerifiedProfileSummary = lazy(() =>
-  import('../features/onboarding/VerifiedProfileSummary.tsx').then((mod) => ({
-    default: mod.VerifiedProfileSummary,
+const OverviewPage = lazy(() =>
+  import('../pages/OverviewPage.tsx').then((mod) => ({
+    default: mod.OverviewPage,
   })),
 );
-const PersonalizedAdvisoryWorkspace = lazy(() =>
-  import('../features/advisory/PersonalizedAdvisoryWorkspace.tsx').then((mod) => ({
-    default: mod.PersonalizedAdvisoryWorkspace,
+const AirQualityPage = lazy(() =>
+  import('../pages/AirQualityPage.tsx').then((mod) => ({
+    default: mod.AirQualityPage,
   })),
 );
-const AirQualityDashboard = lazy(() =>
-  import('../features/air-quality/AirQualityDashboard.tsx').then((mod) => ({
-    default: mod.AirQualityDashboard,
+const DailyRoutinesPage = lazy(() =>
+  import('../pages/DailyRoutinesPage.tsx').then((mod) => ({
+    default: mod.DailyRoutinesPage,
   })),
 );
-const DailyRoutinesWorkspace = lazy(() =>
-  import('../features/routines/DailyRoutinesWorkspace.tsx').then((mod) => ({
-    default: mod.DailyRoutinesWorkspace,
+const IndoorAirPage = lazy(() =>
+  import('../pages/IndoorAirPage.tsx').then((mod) => ({
+    default: mod.IndoorAirPage,
   })),
 );
-const IndoorAirAssistantWorkspace = lazy(() =>
-  import('../features/indoor/IndoorAirAssistantWorkspace.tsx').then((mod) => ({
-    default: mod.IndoorAirAssistantWorkspace,
+const SustainableAlternativesPage = lazy(() =>
+  import('../pages/SustainableAlternativesPage.tsx').then((mod) => ({
+    default: mod.SustainableAlternativesPage,
   })),
 );
-const SustainableAlternativesWorkspace = lazy(() =>
-  import('../features/alternatives/SustainableAlternativesWorkspace.tsx').then((mod) => ({
-    default: mod.SustainableAlternativesWorkspace,
+const HouseholdPage = lazy(() =>
+  import('../pages/HouseholdPage.tsx').then((mod) => ({
+    default: mod.HouseholdPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import('../pages/SettingsPage.tsx').then((mod) => ({
+    default: mod.SettingsPage,
   })),
 );
 
@@ -94,60 +109,34 @@ function ModuleLoadingFallback({ label }: { readonly label: string }) {
   );
 }
 
-export type AppRoute =
-  | 'login'
-  | 'register'
-  | 'forgot-password'
-  | 'reset-password'
-  | 'verify-email'
-  | 'onboarding'
-  | 'account-ready';
-
 export interface AppProps {
   readonly authService?: AuthService;
   readonly householdStore?: HouseholdStore;
   readonly apiClient?: WebApiClient;
 }
 
-const TITLE_MAP: Readonly<Record<AppRoute, string>> = {
+const PUBLIC_TITLE_MAP: Readonly<Record<Exclude<AppRoute, 'workspace'>, string>> = {
   login: 'Sign In · Urban Air Quality Assistant',
   register: 'Create Account · Urban Air Quality Assistant',
   'forgot-password': 'Forgot Password · Urban Air Quality Assistant',
   'reset-password': 'Reset Password · Urban Air Quality Assistant',
   'verify-email': 'Verify Email · Urban Air Quality Assistant',
   onboarding: 'Household Onboarding · VAYORA',
-  'account-ready': 'Air Quality, Routines, Indoor & Alternatives · VAYORA',
 };
 
-function readInitialUrlState(): {
-  route: AppRoute;
-  oobCode: string | null;
-  blockedProtectedRoute: boolean;
-} {
+function pushHistoryUrl(nextUrl: string, state: Record<string, unknown>, replace = false): void {
   if (typeof window === 'undefined') {
-    return { route: 'login', oobCode: null, blockedProtectedRoute: false };
+    return;
   }
-  const params = new URLSearchParams(window.location.search);
-  const mode = params.get('mode');
-  const oobCode = params.get('oobCode');
-  const view = params.get('view');
-
-  if (mode === 'resetPassword') {
-    return { route: 'reset-password', oobCode: oobCode ?? '', blockedProtectedRoute: false };
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (current === nextUrl) {
+    return;
   }
-  if (mode === 'verifyEmail' && oobCode) {
-    return { route: 'verify-email', oobCode, blockedProtectedRoute: false };
+  if (replace) {
+    window.history.replaceState(state, '', nextUrl);
+  } else {
+    window.history.pushState(state, '', nextUrl);
   }
-  if (view === 'register') {
-    return { route: 'register', oobCode: null, blockedProtectedRoute: false };
-  }
-  if (view === 'forgot-password') {
-    return { route: 'forgot-password', oobCode: null, blockedProtectedRoute: false };
-  }
-  if (view === 'onboarding' || view === 'account-ready' || view === 'dashboard') {
-    return { route: 'login', oobCode: null, blockedProtectedRoute: true };
-  }
-  return { route: 'login', oobCode: null, blockedProtectedRoute: false };
 }
 
 function UrbanAirQualityAppShell({
@@ -160,7 +149,7 @@ function UrbanAirQualityAppShell({
     () => injectedStore ?? createLazyFirestoreStore(),
     [injectedStore],
   );
-  const apiClient = useMemo(
+  const rawApiClient = useMemo(
     () =>
       injectedApiClient ??
       createApiClient({
@@ -168,16 +157,18 @@ function UrbanAirQualityAppShell({
       }),
     [injectedApiClient, authService],
   );
+  const apiClient = useMemo(() => createCachedWorkspaceApiClient(rawApiClient), [rawApiClient]);
 
   const initialUrl = useMemo(() => readInitialUrlState(), []);
+  const intendedWorkspacePageRef = useRef<WorkspacePageId | null>(initialUrl.intendedWorkspacePage);
 
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<AuthUserSnapshot | null>(null);
   const [principal, setPrincipal] = useState<AuthenticatedPrincipal | null>(null);
   const [householdProfile, setHouseholdProfile] = useState<HouseholdLifestyleRecord | null>(null);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const [route, setRoute] = useState<AppRoute>(initialUrl.route);
+  const [workspacePage, setWorkspacePage] = useState<WorkspacePageId>(initialUrl.workspacePage);
   const [oobCode, setOobCode] = useState<string | null>(initialUrl.oobCode);
   const [pendingTermsIso, setPendingTermsIso] = useState<string | undefined>(undefined);
   const [statusMessage, setStatusMessage] = useState<string | undefined>(
@@ -188,9 +179,12 @@ function UrbanAirQualityAppShell({
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSyncingSession, setIsSyncingSession] = useState(false);
   const [airQualitySyncToken, setAirQualitySyncToken] = useState<string | undefined>(undefined);
-  const [activeSectionId, setActiveSectionId] = useState<string>('personalized-advisory-heading');
 
-  useDocumentTitle(TITLE_MAP[route]);
+  const documentTitle =
+    route === 'workspace'
+      ? getWorkspaceNavItem(workspacePage).documentTitle
+      : PUBLIC_TITLE_MAP[route];
+  useDocumentTitle(documentTitle);
 
   const handleWorkspaceSessionIssue = useCallback(
     (error: unknown) => {
@@ -198,11 +192,11 @@ function UrbanAirQualityAppShell({
         return;
       }
       if (error.statusCode === 401) {
+        apiClient.invalidateWorkspaceCache();
         void authService.logout();
         setUser(null);
         setPrincipal(null);
         setHouseholdProfile(null);
-        setIsEditingProfile(false);
         setSessionError('Your session expired or was revoked. Please sign in again.');
         setRoute('login');
       } else if (error.statusCode === 403 && error.code === 'EMAIL_NOT_VERIFIED') {
@@ -210,7 +204,7 @@ function UrbanAirQualityAppShell({
         setRoute('verify-email');
       }
     },
-    [authService],
+    [apiClient, authService],
   );
 
   const hydrateVerifiedWorkspace = useCallback(
@@ -274,10 +268,20 @@ function UrbanAirQualityAppShell({
         }
 
         setHouseholdProfile(profile);
-        setIsEditingProfile(false);
-        setRoute(profile?.onboardingCompleted ? 'account-ready' : 'onboarding');
+        if (profile?.onboardingCompleted) {
+          const targetPage =
+            parseWorkspacePageFromLocation() ?? intendedWorkspacePageRef.current ?? 'overview';
+          intendedWorkspacePageRef.current = null;
+          setWorkspacePage(targetPage);
+          setRoute('workspace');
+          pushHistoryUrl(buildWorkspaceUrl(targetPage), { workspacePage: targetPage }, true);
+        } else {
+          setRoute('onboarding');
+          pushHistoryUrl(buildPublicUrl('onboarding'), { route: 'onboarding' }, true);
+        }
       } catch (error) {
         if (error instanceof ApiClientError && error.statusCode === 401) {
+          apiClient.invalidateWorkspaceCache();
           await authService.logout();
           setUser(null);
           setPrincipal(null);
@@ -307,9 +311,9 @@ function UrbanAirQualityAppShell({
       setAuthReady(true);
 
       if (!nextUser) {
+        apiClient.invalidateWorkspaceCache();
         setPrincipal(null);
         setHouseholdProfile(null);
-        setIsEditingProfile(false);
         setRoute((prev) =>
           prev === 'register' || prev === 'forgot-password' || prev === 'reset-password'
             ? prev
@@ -328,33 +332,185 @@ function UrbanAirQualityAppShell({
     });
 
     return () => unsubscribe();
-  }, [authService, hydrateVerifiedWorkspace, pendingTermsIso]);
+  }, [apiClient, authService, hydrateVerifiedWorkspace, pendingTermsIso]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    function handlePopState() {
+      if (user && principal && householdProfile?.onboardingCompleted) {
+        const nextPage = parseWorkspacePageFromLocation() ?? 'overview';
+        setWorkspacePage(nextPage);
+        setRoute('workspace');
+        return;
+      }
+
+      const nextState = readInitialUrlState();
+      setRoute(nextState.route);
+      setOobCode(nextState.oobCode);
+      if (nextState.blockedProtectedRoute) {
+        intendedWorkspacePageRef.current = nextState.intendedWorkspacePage;
+        setStatusMessage(
+          'Sign in with a verified household account to access protected onboarding routes.',
+        );
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [householdProfile, principal, user]);
 
   const handleSignOut = useCallback(async () => {
+    apiClient.invalidateWorkspaceCache();
+    intendedWorkspacePageRef.current = null;
     await authService.logout();
     setUser(null);
     setPrincipal(null);
     setHouseholdProfile(null);
-    setIsEditingProfile(false);
     setSessionError(null);
     setStatusMessage('You have been signed out.');
     setRoute('login');
-  }, [authService]);
+    pushHistoryUrl(buildPublicUrl('login'), { route: 'login' }, false);
+  }, [apiClient, authService]);
 
   const navigatePublicRoute = useCallback((next: 'login' | 'register' | 'forgot-password') => {
     setSessionError(null);
     setStatusMessage(undefined);
     setOobCode(null);
     setRoute(next);
+    pushHistoryUrl(buildPublicUrl(next), { route: next }, false);
   }, []);
 
-  const handleSectionJump = useCallback((sectionId: string) => {
-    setActiveSectionId(sectionId);
-    if (typeof document !== 'undefined') {
-      const target = document.getElementById(sectionId);
-      target?.focus();
-    }
+  const navigateWorkspacePage = useCallback((nextPage: WorkspacePageId) => {
+    setWorkspacePage(nextPage);
+    setRoute('workspace');
+    pushHistoryUrl(buildWorkspaceUrl(nextPage), { workspacePage: nextPage }, false);
   }, []);
+
+  const handleProfileUpdated = useCallback(
+    (updated: HouseholdLifestyleRecord) => {
+      apiClient.invalidateWorkspaceCache();
+      setHouseholdProfile(updated);
+    },
+    [apiClient],
+  );
+
+  const handleTelemetryUpdated = useCallback(
+    (syncToken: string) => {
+      apiClient.invalidateWorkspaceCache();
+      setAirQualitySyncToken(syncToken);
+    },
+    [apiClient],
+  );
+
+  const isWorkspaceReady =
+    authReady &&
+    !isSyncingSession &&
+    user !== null &&
+    principal !== null &&
+    route === 'workspace' &&
+    householdProfile !== null;
+
+  if (isWorkspaceReady) {
+    return (
+      <WorkspaceShell
+        activePage={workspacePage}
+        user={user}
+        profile={householdProfile}
+        onNavigate={navigateWorkspacePage}
+        onSignOut={handleSignOut}
+      >
+        {sessionError ? (
+          <AlertBanner tone="error" title="Session security notice">
+            <p>{sessionError}</p>
+          </AlertBanner>
+        ) : null}
+
+        <ErrorBoundary>
+          <Suspense
+            fallback={<ModuleLoadingFallback label={getWorkspaceNavItem(workspacePage).label} />}
+          >
+            {workspacePage === 'overview' ? (
+              <OverviewPage
+                user={user}
+                profile={householdProfile}
+                apiClient={apiClient}
+                airQualitySyncToken={airQualitySyncToken}
+                onNavigate={navigateWorkspacePage}
+                onSessionIssue={handleWorkspaceSessionIssue}
+              />
+            ) : null}
+
+            {workspacePage === 'air-quality' ? (
+              <AirQualityPage
+                userId={user.uid}
+                profile={householdProfile}
+                apiClient={apiClient}
+                householdStore={householdStore}
+                onProfileUpdated={handleProfileUpdated}
+                onTelemetryUpdated={handleTelemetryUpdated}
+                onSessionIssue={handleWorkspaceSessionIssue}
+              />
+            ) : null}
+
+            {workspacePage === 'daily-routines' ? (
+              <DailyRoutinesPage
+                profile={householdProfile}
+                apiClient={apiClient}
+                airQualitySyncToken={airQualitySyncToken}
+                onSessionIssue={handleWorkspaceSessionIssue}
+              />
+            ) : null}
+
+            {workspacePage === 'indoor-air' ? (
+              <IndoorAirPage
+                profile={householdProfile}
+                apiClient={apiClient}
+                airQualitySyncToken={airQualitySyncToken}
+                onSessionIssue={handleWorkspaceSessionIssue}
+              />
+            ) : null}
+
+            {workspacePage === 'sustainable-alternatives' ? (
+              <SustainableAlternativesPage
+                profile={householdProfile}
+                apiClient={apiClient}
+                airQualitySyncToken={airQualitySyncToken}
+                onSessionIssue={handleWorkspaceSessionIssue}
+              />
+            ) : null}
+
+            {workspacePage === 'household' ? (
+              <HouseholdPage
+                user={user}
+                principal={principal}
+                profile={householdProfile}
+                apiClient={apiClient}
+                householdStore={householdStore}
+                onProfileUpdated={handleProfileUpdated}
+              />
+            ) : null}
+
+            {workspacePage === 'settings' ? (
+              <SettingsPage
+                user={user}
+                principal={principal}
+                profile={householdProfile}
+                authService={authService}
+                apiClient={apiClient}
+                householdStore={householdStore}
+                onProfileUpdated={handleProfileUpdated}
+                onSignOut={handleSignOut}
+                onSessionIssue={handleWorkspaceSessionIssue}
+              />
+            ) : null}
+          </Suspense>
+        </ErrorBoundary>
+      </WorkspaceShell>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
@@ -477,6 +633,7 @@ function UrbanAirQualityAppShell({
                 setOobCode(null);
                 setStatusMessage('Your password has been updated. Sign in with your new password.');
                 setRoute('login');
+                pushHistoryUrl(buildPublicUrl('login'), { route: 'login' }, false);
               }}
               onRequestNewLink={() => navigatePublicRoute('forgot-password')}
             />
@@ -502,137 +659,28 @@ function UrbanAirQualityAppShell({
         !isSyncingSession &&
         user &&
         principal &&
-        (route === 'onboarding' || isEditingProfile) ? (
+        route === 'onboarding' ? (
           <Suspense fallback={<ModuleLoadingFallback label="household setup" />}>
             <HouseholdOnboardingWizard
               user={user}
               initialProfile={householdProfile}
-              isEditingExisting={isEditingProfile}
+              isEditingExisting={false}
               apiClient={apiClient}
               householdStore={householdStore}
               onSaved={(savedRecord, completed) => {
+                apiClient.invalidateWorkspaceCache();
                 setHouseholdProfile(savedRecord);
                 if (completed) {
-                  setIsEditingProfile(false);
+                  const targetPage = intendedWorkspacePageRef.current ?? 'overview';
+                  intendedWorkspacePageRef.current = null;
                   setStatusMessage('Your household location and lifestyle preferences are saved.');
-                  setRoute('account-ready');
+                  setWorkspacePage(targetPage);
+                  setRoute('workspace');
+                  pushHistoryUrl(buildWorkspaceUrl(targetPage), { workspacePage: targetPage }, true);
                 }
               }}
-              onCancelEdit={
-                isEditingProfile
-                  ? () => {
-                      setIsEditingProfile(false);
-                      setRoute('account-ready');
-                    }
-                  : undefined
-              }
             />
           </Suspense>
-        ) : null}
-
-        {authReady &&
-        !isSyncingSession &&
-        user &&
-        principal &&
-        route === 'account-ready' &&
-        !isEditingProfile &&
-        householdProfile ? (
-          <div className="space-y-8">
-            <Suspense fallback={<ModuleLoadingFallback label="household summary" />}>
-              <VerifiedProfileSummary
-                user={user}
-                principal={principal}
-                profile={householdProfile}
-                statusMessage={statusMessage}
-                onEditProfile={() => {
-                  setStatusMessage(undefined);
-                  setIsEditingProfile(true);
-                }}
-              />
-            </Suspense>
-
-            <nav
-              aria-label="Workspace sections"
-              className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border-y border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800"
-            >
-              {[
-                { id: 'personalized-advisory-heading', label: 'Personalized Briefing' },
-                { id: 'air-quality-location-heading', label: 'Air Quality Intelligence' },
-                { id: 'daily-routines-heading', label: 'Low-Emission Daily Routines' },
-                { id: 'indoor-air-heading', label: 'Indoor Air Quality Assistant' },
-                { id: 'sustainable-alternatives-heading', label: 'Sustainable Alternatives' },
-              ].map((section, index) => {
-                const isActive = activeSectionId === section.id;
-                return (
-                  <span key={section.id} className="inline-flex items-center gap-x-5">
-                    {index > 0 ? (
-                      <span aria-hidden="true" className="text-slate-300">
-                        /
-                      </span>
-                    ) : null}
-                    <a
-                      href={`#${section.id}`}
-                      aria-current={isActive ? 'location' : undefined}
-                      onClick={() => handleSectionJump(section.id)}
-                      className={`underline-offset-4 hover:text-[#0F5132] hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-[#0F5132] focus-visible:outline-none ${
-                        isActive ? 'text-[#0F5132] underline' : ''
-                      }`}
-                    >
-                      {section.label}
-                    </a>
-                  </span>
-                );
-              })}
-            </nav>
-
-            <Suspense fallback={<ModuleLoadingFallback label="Personalized Briefing" />}>
-              <PersonalizedAdvisoryWorkspace
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            </Suspense>
-
-            <Suspense fallback={<ModuleLoadingFallback label="Air Quality Intelligence" />}>
-              <AirQualityDashboard
-                userId={user.uid}
-                profile={householdProfile}
-                apiClient={apiClient}
-                householdStore={householdStore}
-                onProfileUpdated={(updated) => setHouseholdProfile(updated)}
-                onTelemetryUpdated={setAirQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            </Suspense>
-
-            <Suspense fallback={<ModuleLoadingFallback label="Low-Emission Daily Routines" />}>
-              <DailyRoutinesWorkspace
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            </Suspense>
-
-            <Suspense fallback={<ModuleLoadingFallback label="Indoor Air Quality Assistant" />}>
-              <IndoorAirAssistantWorkspace
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            </Suspense>
-
-            <Suspense fallback={<ModuleLoadingFallback label="Sustainable Alternatives" />}>
-              <SustainableAlternativesWorkspace
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            </Suspense>
-          </div>
         ) : null}
       </main>
 

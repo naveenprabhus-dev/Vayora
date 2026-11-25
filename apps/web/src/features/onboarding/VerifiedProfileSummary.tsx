@@ -19,6 +19,7 @@ export interface VerifiedProfileSummaryProps {
   readonly principal: AuthenticatedPrincipal;
   readonly profile: HouseholdLifestyleRecord;
   readonly statusMessage?: string | undefined;
+  readonly hideTopHero?: boolean | undefined;
   readonly onEditProfile: () => void;
 }
 
@@ -27,6 +28,7 @@ export function VerifiedProfileSummary({
   principal,
   profile,
   statusMessage,
+  hideTopHero = false,
   onEditProfile,
 }: VerifiedProfileSummaryProps) {
   const compositionLabels = profile.householdComposition
@@ -35,18 +37,23 @@ export function VerifiedProfileSummary({
 
   return (
     <div className="space-y-6">
-      <section aria-labelledby="account-ready-heading" className="space-y-2">
-        <p className="font-mono text-xs font-medium tracking-wide text-slate-600 uppercase">
-          VAYORA · Verified Household Workspace
-        </p>
-        <h1 id="account-ready-heading" className="text-3xl font-bold tracking-tight text-slate-950">
-          Welcome, {user.displayName}
-        </h1>
-        <p className="max-w-2xl text-sm leading-relaxed text-slate-700">
-          Your email address is verified and your household location and lifestyle profile is saved
-          under strict server-verified ownership rules.
-        </p>
-      </section>
+      {!hideTopHero ? (
+        <section aria-labelledby="account-ready-heading" className="space-y-2">
+          <p className="font-mono text-xs font-medium tracking-wide text-slate-600 uppercase">
+            VAYORA · Verified Household Workspace
+          </p>
+          <h1
+            id="account-ready-heading"
+            className="text-3xl font-bold tracking-tight text-slate-950"
+          >
+            Welcome, {user.displayName}
+          </h1>
+          <p className="max-w-2xl text-sm leading-relaxed text-slate-700">
+            Your email address is verified and your household location and lifestyle profile is
+            saved under strict server-verified ownership rules.
+          </p>
+        </section>
+      ) : null}
 
       {statusMessage ? (
         <AlertBanner tone="success" title="Household profile updated">

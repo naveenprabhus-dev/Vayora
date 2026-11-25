@@ -503,7 +503,7 @@ test.describe('Phase 3 Low-Emission Daily Routines (E2E & WCAG 2.2 AA)', () => {
     page,
   }) => {
     await setupRoutinesE2ERoutes(page);
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=daily-routines');
 
     await expect(page.getByTestId('daily-routines-workspace')).toBeVisible();
     await expect(

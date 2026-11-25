@@ -1107,12 +1107,18 @@ describe('Phase 1 Authentication & Household Onboarding Flows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Complete onboarding' }));
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /Welcome, Elena Nowak/i }),
+      await screen.findByRole('heading', { level: 1, name: /Air Quality Overview/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Krowodrza, Krakow, Poland/)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome, Elena Nowak/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Krowodrza, Krakow, Poland/).length).toBeGreaterThan(0);
     await runAxeAudit(container);
 
-    // Edit preferences after completion
+    // Navigate to My Household and edit preferences after completion
+    fireEvent.click(screen.getByTestId('sidebar-nav-household'));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /My Household/i }),
+    ).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: /Edit preferences/i }));
     expect(
       await screen.findByRole('heading', {
@@ -1126,7 +1132,7 @@ describe('Phase 1 Authentication & Household Onboarding Flows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue to Step 3' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save updated preferences' }));
 
-    expect(await screen.findByText(/Krowodrza, Warsaw, Poland/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Krowodrza, Warsaw, Poland/)).length).toBeGreaterThan(0);
   });
 
   it('provides enumeration-resistant forgot password response and handles expired vs valid reset links', async () => {

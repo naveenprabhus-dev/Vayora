@@ -596,7 +596,7 @@ test.describe('Phase 4 Indoor Air Quality Assistant (E2E & WCAG 2.2 AA)', () => 
     page,
   }) => {
     await setupIndoorE2ERoutes(page, { freshness: 'fresh' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=indoor-air');
 
     await expect(page.getByTestId('indoor-air-assistant-workspace')).toBeVisible();
     await expect(page.getByTestId('indoor-sensor-disclosure')).toContainText(
@@ -645,7 +645,7 @@ test.describe('Phase 4 Indoor Air Quality Assistant (E2E & WCAG 2.2 AA)', () => 
     page,
   }) => {
     await setupIndoorE2ERoutes(page, { freshness: 'stale' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=indoor-air');
     await expect(
       page
         .getByTestId('indoor-air-assistant-workspace')
@@ -654,7 +654,7 @@ test.describe('Phase 4 Indoor Air Quality Assistant (E2E & WCAG 2.2 AA)', () => 
 
     await page.unrouteAll();
     await setupIndoorE2ERoutes(page, { freshness: 'unavailable' });
-    await page.goto('/apps/web/tests/e2e/dashboard-harness.html');
+    await page.goto('/apps/web/tests/e2e/dashboard-harness.html?page=indoor-air');
     await expect(
       page.getByText(/Live outdoor telemetry unavailable — safety & educational guidance active/i),
     ).toBeVisible();

@@ -213,10 +213,19 @@ describe('Firestore Security Rules (Adversarial Dirty Dozen & Ownership)', () =>
     await assertFails(getDoc(doc(spoofAdminDb, 'users', 'user_a')));
   });
 
-  it('10. allows verified owner to create and update their own user, private PII, and household profile', async () => {
+  it('10. allows verified owner to read non-existent own household and create/update their user, private PII, and household profile', async () => {
     const db = testEnv
       .authenticatedContext('user_owner', { email: 'owner@example.org', email_verified: true })
       .firestore();
+    const attackerDb = testEnv
+      .authenticatedContext('user_attacker', {
+        email: 'attacker@example.org',
+        email_verified: true,
+      })
+      .firestore();
+
+    await assertSucceeds(getDoc(doc(db, 'households', 'user_owner')));
+    await assertFails(getDoc(doc(attackerDb, 'households', 'user_owner')));
 
     await assertSucceeds(
       setDoc(doc(db, 'users', 'user_owner'), {
@@ -241,6 +250,9 @@ describe('Firestore Security Rules (Adversarial Dirty Dozen & Ownership)', () =>
     await assertSucceeds(
       setDoc(doc(db, 'households', 'user_owner'), validHouseholdPayload('user_owner')),
     );
+
+    await assertSucceeds(getDoc(doc(db, 'households', 'user_owner')));
+    await assertFails(getDoc(doc(attackerDb, 'households', 'user_owner')));
 
     await assertSucceeds(
       updateDoc(doc(db, 'households', 'user_owner'), {
