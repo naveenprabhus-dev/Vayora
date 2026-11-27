@@ -1,4 +1,8 @@
-import type { AdvisoryExplanationFocus, AdvisorySourceModule, HouseholdLifestyleRecord } from '@uaqa/contracts';
+import type {
+  AdvisoryExplanationFocus,
+  AdvisorySourceModule,
+  HouseholdLifestyleRecord,
+} from '@uaqa/contracts';
 import { MapPin } from 'lucide-react';
 import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
 import { Button, PageHeader, SurfaceCard } from '../components/index.ts';
@@ -57,7 +61,10 @@ export function OverviewPage({
     onSessionIssue,
   });
 
-  const fetchAqSummary = useCallback(() => apiClient.getAirQualityCurrent({ hours: 24 }), [apiClient]);
+  const fetchAqSummary = useCallback(
+    () => apiClient.getAirQualityCurrent({ hours: 24 }),
+    [apiClient],
+  );
   const fetchRoutine = useCallback(() => apiClient.getDailyRoutines(), [apiClient]);
   const fetchBriefing = useCallback(
     () => apiClient.getPersonalizedBriefing({ focus: selectedFocus }),

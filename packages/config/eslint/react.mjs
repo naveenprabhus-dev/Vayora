@@ -3,7 +3,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 
 export const reactAccessibilityConfig = [
   {
-    files: ['apps/web/**/*.{js,jsx,mjs}', 'src/**/*.{js,jsx,mjs}'],
+    files: ['apps/web/**/*.{js,jsx,mjs,ts,tsx}', 'src/**/*.{js,jsx,mjs,ts,tsx}'],
     plugins: {
       'jsx-a11y': jsxA11y,
       'react-hooks': reactHooks,

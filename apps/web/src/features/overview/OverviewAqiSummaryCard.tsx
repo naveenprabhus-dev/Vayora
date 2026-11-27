@@ -2,10 +2,7 @@ import type { AirQualityCurrentResponse } from '@uaqa/contracts';
 import { ArrowRight } from 'lucide-react';
 import { buildWorkspaceUrl } from '../../app/routing.ts';
 import { AlertBanner, SurfaceCard } from '../../components/index.ts';
-import {
-  formatIsoTimestamp,
-  getAqiSeverityVisual,
-} from '../air-quality/severityStyles.ts';
+import { formatIsoTimestamp, getAqiSeverityVisual } from '../air-quality/severityStyles.ts';
 import type { WorkspacePageId } from '../navigation/navConfig.ts';
 import { handleWorkspaceLinkClick } from '../navigation/navigationUtils.ts';
 
@@ -95,9 +92,7 @@ export function OverviewAqiSummaryCard({
                   </span>
                   <p className="mt-1 font-mono text-xs text-slate-700 tabular-nums">
                     EEA AQI:{' '}
-                    {euAqi.value !== null
-                      ? `${euAqi.value} (${euAqi.category})`
-                      : 'Unavailable'}
+                    {euAqi.value !== null ? `${euAqi.value} (${euAqi.category})` : 'Unavailable'}
                   </p>
                 </div>
               </div>

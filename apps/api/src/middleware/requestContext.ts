@@ -1,19 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
+import type { RequestContext } from '../types/express.d.ts';
 import { redactSensitiveData } from '../utils/redact.ts';
 
-export interface RequestContext {
-  readonly requestId: string;
-  readonly startedAtMs: number;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      context?: RequestContext;
-    }
-  }
-}
+export type { RequestContext };
 
 export function attachRequestContext(req: Request, res: Response, next: NextFunction): void {
   const incomingRequestId = req.header('x-request-id');

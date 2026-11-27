@@ -1,15 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
-import type { AuthenticatedPrincipal } from '@uaqa/contracts';
+import type { AuthenticatedPrincipal } from '../types/express.d.ts';
 import type { RoleResolver, TokenVerifier } from '../services/auth/tokenVerifier.ts';
 import { EmailNotVerifiedError, UnauthorizedError } from '../utils/errors.ts';
-
-declare global {
-  namespace Express {
-    interface Request {
-      principal?: AuthenticatedPrincipal;
-    }
-  }
-}
 
 function extractBearerToken(authorizationHeader: string | undefined): string {
   if (!authorizationHeader) {
@@ -32,13 +24,14 @@ export function createAuthenticateMiddleware(
       const claims = await tokenVerifier.verifyIdToken(token);
       const role = await roleResolver.resolveRole(claims.uid, claims);
 
-      req.principal = {
+      const principal: AuthenticatedPrincipal = {
         uid: claims.uid,
         email: claims.email,
         emailVerified: claims.emailVerified,
         role,
         authTimeSeconds: claims.authTimeSeconds,
       };
+      req.principal = principal;
       next();
     } catch (error) {
       next(error);

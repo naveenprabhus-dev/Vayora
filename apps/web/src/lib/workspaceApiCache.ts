@@ -31,7 +31,10 @@ function serializeKey(prefix: string, input: unknown): string {
   return entries.length === 0 ? `${prefix}:default` : `${prefix}:${JSON.stringify(entries)}`;
 }
 
-function pickDefined<T extends object>(source: T | undefined, keys: readonly (keyof T)[]): Partial<T> {
+function pickDefined<T extends object>(
+  source: T | undefined,
+  keys: readonly (keyof T)[],
+): Partial<T> {
   if (!source) {
     return {};
   }
@@ -173,7 +176,13 @@ export function createCachedWorkspaceApiClient(baseClient: WebApiClient): Worksp
       const refreshed = await baseClient.refreshSustainableAlternatives(input);
       const key = serializeKey(
         'alternatives',
-        pickDefined(input, ['category', 'affordability', 'relevance', 'impactType', 'practicality']),
+        pickDefined(input, [
+          'category',
+          'affordability',
+          'relevance',
+          'impactType',
+          'practicality',
+        ]),
       );
       alternativesCache.set(key, Promise.resolve(refreshed));
       return refreshed;

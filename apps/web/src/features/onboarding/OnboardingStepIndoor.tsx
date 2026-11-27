@@ -36,8 +36,7 @@ export function OnboardingStepIndoor({
           onChange={(e) =>
             setDraft((p) => ({
               ...p,
-              ventilationContext: e.target
-                .value as HouseholdLifestyleInput['ventilationContext'],
+              ventilationContext: e.target.value as HouseholdLifestyleInput['ventilationContext'],
             }))
           }
           error={fieldErrors.ventilationContext}

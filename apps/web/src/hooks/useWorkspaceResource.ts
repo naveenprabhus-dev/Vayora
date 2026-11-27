@@ -19,8 +19,9 @@ interface ResourceState<T> {
 
 /**
  * Standardized request-keyed async resource hook for workspace modules.
- * Avoids synchronous setState inside effects while preserving stale-data visibility
- * during filter/scenario updates and explicit forced refreshes.
+ * Uses monotonic request generations and mount tracking so out-of-order
+ * fetches or refreshes never overwrite newer state, and avoids render-time
+ * ref writes or synchronous setState inside effects.
  */
 export function useWorkspaceResource<T>({
   requestKey,
@@ -34,65 +35,104 @@ export function useWorkspaceResource<T>({
   const [state, setState] = useState<ResourceState<T> | null>(null);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
+  const isMountedRef = useRef(true);
+  const requestGenerationRef = useRef(0);
+  const manualRefreshGenerationRef = useRef(0);
   const onLoadedRef = useRef(onLoaded);
-  onLoadedRef.current = onLoaded;
+  const onSessionIssueRef = useRef(onSessionIssue);
 
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      requestGenerationRef.current += 1;
+    };
+  }, []);
 
-    let cancelled = false;
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
+
+  useEffect(() => {
+    onSessionIssueRef.current = onSessionIssue;
+  }, [onSessionIssue]);
+
+  useEffect(() => {
+    const generation = ++requestGenerationRef.current;
+
+    if (!enabled) {
+      return () => {
+        requestGenerationRef.current += 1;
+      };
+    }
 
     async function runFetch(): Promise<void> {
       try {
         const result = await fetcher();
-        if (!cancelled) {
-          setState({ key: requestKey, data: result, error: null });
-          onLoadedRef.current?.(result);
+        if (!isMountedRef.current || requestGenerationRef.current !== generation) {
+          return;
         }
+        setState({ key: requestKey, data: result, error: null });
+        onLoadedRef.current?.(result);
       } catch (error: unknown) {
-        if (!cancelled) {
-          onSessionIssue?.(error);
-          setState((prev) => ({
-            key: requestKey,
-            data: prev?.data ?? null,
-            error: formatWorkspaceError(error, moduleLabel),
-          }));
+        if (!isMountedRef.current || requestGenerationRef.current !== generation) {
+          return;
         }
+        onSessionIssueRef.current?.(error);
+        setState((prev) => ({
+          key: requestKey,
+          data: prev?.data ?? null,
+          error: formatWorkspaceError(error, moduleLabel),
+        }));
       }
     }
 
     void runFetch();
     return () => {
-      cancelled = true;
+      requestGenerationRef.current += 1;
     };
-  }, [enabled, fetcher, moduleLabel, onSessionIssue, requestKey]);
+  }, [enabled, fetcher, moduleLabel, requestKey]);
 
   const refresh = useCallback(async () => {
+    if (!enabled) {
+      return;
+    }
+
+    const generation = ++requestGenerationRef.current;
+    const refreshGeneration = ++manualRefreshGenerationRef.current;
+    const targetRequestKey = requestKey;
     const runRefresh = refresher ?? fetcher;
+
     setIsManualRefreshing(true);
     try {
       const result = await runRefresh();
-      setState({ key: requestKey, data: result, error: null });
+      if (!isMountedRef.current || requestGenerationRef.current !== generation) {
+        return;
+      }
+      setState({ key: targetRequestKey, data: result, error: null });
       onLoadedRef.current?.(result);
     } catch (error: unknown) {
-      onSessionIssue?.(error);
+      if (!isMountedRef.current || requestGenerationRef.current !== generation) {
+        return;
+      }
+      onSessionIssueRef.current?.(error);
       setState((prev) => ({
-        key: requestKey,
+        key: targetRequestKey,
         data: prev?.data ?? null,
         error: formatWorkspaceError(error, moduleLabel),
       }));
     } finally {
-      setIsManualRefreshing(false);
+      if (isMountedRef.current && manualRefreshGenerationRef.current === refreshGeneration) {
+        setIsManualRefreshing(false);
+      }
     }
-  }, [fetcher, moduleLabel, onSessionIssue, refresher, requestKey]);
+  }, [enabled, fetcher, moduleLabel, refresher, requestKey]);
 
   const data = state?.data ?? null;
   const error = state?.key === requestKey ? state.error : null;
   const isPendingKey = enabled && state?.key !== requestKey;
   const isLoading = isPendingKey && data === null;
-  const isRefreshing = isManualRefreshing || (isPendingKey && data !== null);
+  const isRefreshing = enabled && (isManualRefreshing || (isPendingKey && data !== null));
 
   return {
     data,

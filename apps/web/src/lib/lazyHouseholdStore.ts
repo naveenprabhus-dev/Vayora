@@ -8,9 +8,7 @@ export function createLazyFirestoreStore(): HouseholdStore {
   let storePromise: Promise<HouseholdStore> | null = null;
   const loadStore = (): Promise<HouseholdStore> => {
     if (!storePromise) {
-      storePromise = import('./householdStore.ts').then(
-        (mod) => new mod.FirestoreHouseholdStore(),
-      );
+      storePromise = import('./householdStore.ts').then((mod) => new mod.FirestoreHouseholdStore());
     }
     return storePromise;
   };

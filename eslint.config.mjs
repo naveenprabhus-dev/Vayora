@@ -11,8 +11,6 @@ export default [
       '**/coverage/**',
       'playwright-report/**',
       'test-results/**',
-      '**/*.ts',
-      '**/*.tsx',
     ],
   },
   ...baseEslintConfig,

@@ -29,10 +29,26 @@ export default defineConfig(() => {
       },
     ],
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: {
         '@': path.resolve(import.meta.dirname, './apps/web/src'),
         '@uaqa/contracts': path.resolve(import.meta.dirname, './packages/contracts/src/index.ts'),
       },
+    },
+    optimizeDeps: {
+      entries: ['index.html', 'src/main.tsx', 'apps/web/src/app/App.tsx'],
+      include: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'firebase/app',
+        'firebase/auth',
+        'firebase/firestore',
+        'lucide-react',
+        'zod',
+      ],
     },
     build: {
       rollupOptions: {

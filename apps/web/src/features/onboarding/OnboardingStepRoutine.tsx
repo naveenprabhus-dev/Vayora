@@ -88,8 +88,7 @@ export function OnboardingStepRoutine({
           onChange={(e) =>
             setDraft((p) => ({
               ...p,
-              primaryCommuteMode: e.target
-                .value as HouseholdLifestyleInput['primaryCommuteMode'],
+              primaryCommuteMode: e.target.value as HouseholdLifestyleInput['primaryCommuteMode'],
             }))
           }
           error={fieldErrors.primaryCommuteMode}

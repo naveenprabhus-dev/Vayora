@@ -8,13 +8,13 @@ VAYORA (Urban Air Quality Assistant) helps households navigate winter smog and u
 
 ## Technology Stack
 
-- **Monorepo**: `npm` workspaces (`apps/*`, `packages/*`) with `pnpm-workspace.yaml` compatibility
+- **Monorepo**: Workspace configuration in `package.json` (`apps/*`, `packages/*`) managed by `bun` (`bun.lock`)
 - **Frontend (`apps/web`)**: React 19, TypeScript (strict), Vite 8, Tailwind CSS v4, WCAG 2.2 AA auth, 3-step household onboarding, Personalized Briefing & Impact Explorer, Air Quality Intelligence dashboard, Low-Emission Daily Routines, Indoor Air Quality Assistant, and Sustainable Alternatives Advisor
 - **Backend (`apps/api`)**: Node.js 22, Express 4, TypeScript (strict), Helmet, CORS, `express-rate-limit`, Zod, server-side Firebase ID token verification, RBAC, Open-Meteo adapter with TTL/stale caching, deterministic guidance engines, and owner-scoped cache invalidation on household updates
-- **Identity & Data (`infrastructure/firebase`)**: Provisioned Firebase Authentication (Email/Password + mandatory email verification + password recovery) and Cloud Firestore named database with deployed `firestore.rules` & split PII subcollection
+- **Identity & Data (`firestore.rules`, `infrastructure/firebase`)**: Provisioned Firebase Authentication (Email/Password + mandatory email verification + password recovery) and Cloud Firestore named database with canonical root `firestore.rules`, `firebase-blueprint.json`, indexes, and split PII subcollection
 - **Environmental Data**: Open-Meteo Air Quality API & Geocoding API (`CC BY 4.0`, model-generated atmospheric forecast & dispersion data, disclosed transparently in API & UI)
 - **AI Orchestration**: Server-side `@google/genai` SDK (`gemini-4-hydrogen` / `GEMINI_API_KEY`, server-only with deterministic guardrails and structured fallback; never exposed to browser)
-- **Testing & Quality**: Vitest, React Testing Library, Supertest, Playwright, `axe-core`, `oxlint`, ESLint 9 (`@firebase/eslint-plugin-security-rules`, `eslint-plugin-jsx-a11y`), Prettier
+- **Testing & Quality**: Vitest, React Testing Library, Supertest, Playwright, `axe-core`, `oxlint`, ESLint 9 (`typescript-eslint`, `@firebase/eslint-plugin-security-rules`, `eslint-plugin-jsx-a11y`), Prettier
 
 ## Project Structure
 
@@ -27,9 +27,12 @@ urban-air-quality-assistant/
 │   ├── contracts/          # Shared Zod validation schemas, RBAC permissions, API envelopes
 │   └── config/             # Shared strict TypeScript & ESLint flat configs
 ├── infrastructure/
-│   └── firebase/           # Hardened firestore.rules, indexes, blueprint IR, security spec
+│   └── firebase/           # Firestore indexes, adversarial rules test suite, and security spec
 ├── docs/                   # PRD, Architecture, Security, Testing, Accessibility, Traceability
 ├── .github/workflows/      # Automated CI verification pipeline
+├── firestore.rules         # Canonical Firestore security rules deployed by firebase.json
+├── firebase-blueprint.json # Canonical Firestore entity blueprint
+├── public/favicon.ico      # Canonical application favicon
 ├── server.ts               # Unified AI Studio port-3000 Express + Vite runtime entrypoint
 └── package.json            # Monorepo workspace scripts
 ```
@@ -37,13 +40,13 @@ urban-air-quality-assistant/
 ## Prerequisites
 
 - Node.js `>= 22`
-- `npm >= 10` (or `pnpm >= 9` in local/CI environments)
+- `bun >= 1.4` (canonical workspace package manager with `bun.lock`)
 
 ## Installation & Environment Setup
 
 1. Install dependencies:
    ```bash
-   npm install
+   bun install --frozen-lockfile
    ```
 2. Copy `.env.example` to `.env` for local development (never commit `.env` or credential files):
    ```bash

@@ -8,11 +8,7 @@ export interface WorkspaceLoadingCardProps {
   readonly description: string;
 }
 
-export function WorkspaceLoadingCard({
-  headingId,
-  title,
-  description,
-}: WorkspaceLoadingCardProps) {
+export function WorkspaceLoadingCard({ headingId, title, description }: WorkspaceLoadingCardProps) {
   return (
     <SurfaceCard as="section" aria-labelledby={headingId}>
       <output aria-live="polite" className="block space-y-2 text-sm text-slate-700">
