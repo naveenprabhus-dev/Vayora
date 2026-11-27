@@ -12,3 +12,9 @@ export { SelectField, type SelectFieldProps, type SelectOption } from './SelectF
 export { SkipLink, type SkipLinkProps } from './SkipLink.tsx';
 export { SurfaceCard, type SurfaceCardProps } from './SurfaceCard.tsx';
 export { VisuallyHidden, type VisuallyHiddenProps } from './VisuallyHidden.tsx';
+export {
+  WorkspaceErrorRetryBanner,
+  WorkspaceLoadingCard,
+  type WorkspaceErrorRetryBannerProps,
+  type WorkspaceLoadingCardProps,
+} from './WorkspaceStateFallback.tsx';

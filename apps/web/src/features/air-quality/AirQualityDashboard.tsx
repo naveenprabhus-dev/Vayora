@@ -6,10 +6,15 @@ import type {
   LocationUpdateInput,
 } from '@uaqa/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
+import {
+  AlertBanner,
+  WorkspaceErrorRetryBanner,
+  WorkspaceLoadingCard,
+} from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import type { HouseholdStore } from '../../lib/householdStore.ts';
+import { toHouseholdLifestyleInput } from '../../lib/profileSync.ts';
 import { AqiSummaryCard } from './AqiSummaryCard.tsx';
 import { DataTransparencyPanel } from './DataTransparencyPanel.tsx';
 import { ForecastSection } from './ForecastSection.tsx';
@@ -155,28 +160,12 @@ export function AirQualityDashboard({
           primaryZoneType: profile.locationPreferences.primaryZoneType,
         });
 
-        const nextProfileInput = {
+        const nextProfileInput = toHouseholdLifestyleInput(profile, {
           country: updatedLocation.location.country,
           city: updatedLocation.location.city,
           neighborhood: updatedLocation.location.neighborhood,
           postalPrefix: updatedLocation.location.postalPrefix,
-          locationPreferences: {
-            primaryZoneType: profile.locationPreferences.primaryZoneType,
-            alertsEnabled: profile.locationPreferences.alertsEnabled,
-          },
-          householdSize: profile.householdSize,
-          householdComposition: [...profile.householdComposition],
-          primaryCommuteMode: profile.primaryCommuteMode,
-          outdoorActivityPattern: profile.outdoorActivityPattern,
-          ventilationContext: profile.ventilationContext,
-          hasIndoorAirPurifier: profile.hasIndoorAirPurifier,
-          heatingType: profile.heatingType,
-          lifestylePreferences: {
-            preferredGuidanceFocus: profile.lifestylePreferences.preferredGuidanceFocus,
-            reminderCadence: profile.lifestylePreferences.reminderCadence,
-          },
-          onboardingCompleted: profile.onboardingCompleted,
-        };
+        });
 
         const saved = await householdStore.saveHouseholdProfile(userId, nextProfileInput);
         lastFetchedLocationKeyRef.current = `${saved.country}|${saved.city}|${saved.neighborhood}|${saved.postalPrefix}`;
@@ -205,30 +194,22 @@ export function AirQualityDashboard({
 
   if (isLoading && !currentData) {
     return (
-      <SurfaceCard as="section" aria-labelledby="aq-loading-heading">
-        <output aria-live="polite" className="block space-y-2 text-sm text-slate-700">
-          <p id="aq-loading-heading" className="font-semibold text-slate-950">
-            Loading Air Quality Intelligence...
-          </p>
-          <p>
-            Resolving coordinates for {profile.city}, {profile.country} and retrieving Open-Meteo
-            atmospheric dispersion telemetry.
-          </p>
-        </output>
-      </SurfaceCard>
+      <WorkspaceLoadingCard
+        headingId="aq-loading-heading"
+        title="Loading Air Quality Intelligence..."
+        description={`Resolving coordinates for ${profile.city}, ${profile.country} and retrieving Open-Meteo atmospheric dispersion telemetry.`}
+      />
     );
   }
 
   if (loadError && !currentData) {
     return (
-      <AlertBanner tone="error" title="Air quality telemetry request failed">
-        <p>{loadError}</p>
-        <div className="mt-3">
-          <Button type="button" variant="secondary" onClick={() => void loadCurrentIntelligence()}>
-            Retry telemetry check
-          </Button>
-        </div>
-      </AlertBanner>
+      <WorkspaceErrorRetryBanner
+        title="Air quality telemetry request failed"
+        error={loadError}
+        retryLabel="Retry telemetry check"
+        onRetry={() => void loadCurrentIntelligence()}
+      />
     );
   }
 

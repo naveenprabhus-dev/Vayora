@@ -31,6 +31,19 @@ function serializeKey(prefix: string, input: unknown): string {
   return entries.length === 0 ? `${prefix}:default` : `${prefix}:${JSON.stringify(entries)}`;
 }
 
+function pickDefined<T extends object>(source: T | undefined, keys: readonly (keyof T)[]): Partial<T> {
+  if (!source) {
+    return {};
+  }
+  const result: Partial<T> = {};
+  for (const key of keys) {
+    if (source[key] !== undefined) {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
+
 /**
  * Wraps a WebApiClient with session-scoped response caching and in-flight
  * deduplication so Overview and dedicated module pages share fetched results
@@ -124,12 +137,10 @@ export function createCachedWorkspaceApiClient(baseClient: WebApiClient): Worksp
     async refreshDailyRoutines(input?: RoutinesRefreshInput) {
       routinesCache.clear();
       const refreshed = await baseClient.refreshDailyRoutines(input);
-      const key = serializeKey('routines', {
-        ...(input?.commuteMode !== undefined ? { commuteMode: input.commuteMode } : {}),
-        ...(input?.outdoorActivityPattern !== undefined
-          ? { outdoorActivityPattern: input.outdoorActivityPattern }
-          : {}),
-      });
+      const key = serializeKey(
+        'routines',
+        pickDefined(input, ['commuteMode', 'outdoorActivityPattern']),
+      );
       routinesCache.set(key, Promise.resolve(refreshed));
       return refreshed;
     },
@@ -160,13 +171,10 @@ export function createCachedWorkspaceApiClient(baseClient: WebApiClient): Worksp
     async refreshSustainableAlternatives(input?: AlternativesRefreshInput) {
       alternativesCache.clear();
       const refreshed = await baseClient.refreshSustainableAlternatives(input);
-      const key = serializeKey('alternatives', {
-        ...(input?.category !== undefined ? { category: input.category } : {}),
-        ...(input?.affordability !== undefined ? { affordability: input.affordability } : {}),
-        ...(input?.relevance !== undefined ? { relevance: input.relevance } : {}),
-        ...(input?.impactType !== undefined ? { impactType: input.impactType } : {}),
-        ...(input?.practicality !== undefined ? { practicality: input.practicality } : {}),
-      });
+      const key = serializeKey(
+        'alternatives',
+        pickDefined(input, ['category', 'affordability', 'relevance', 'impactType', 'practicality']),
+      );
       alternativesCache.set(key, Promise.resolve(refreshed));
       return refreshed;
     },

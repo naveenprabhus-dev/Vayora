@@ -20,6 +20,7 @@ import {
 import type { WebApiClient } from '../lib/apiClient.ts';
 import type { AuthService, AuthUserSnapshot } from '../lib/authService.ts';
 import type { HouseholdStore } from '../lib/householdStore.ts';
+import { toHouseholdLifestyleInput } from '../lib/profileSync.ts';
 
 export interface SettingsPageProps {
   readonly user: AuthUserSnapshot;
@@ -73,28 +74,16 @@ export function SettingsPage({
     setPrefsNotice(null);
     setPrefsError(null);
 
-    const nextInput: HouseholdLifestyleInput = {
-      country: profile.country,
-      city: profile.city,
-      neighborhood: profile.neighborhood,
-      postalPrefix: profile.postalPrefix,
+    const nextInput = toHouseholdLifestyleInput(profile, {
       locationPreferences: {
         primaryZoneType: profile.locationPreferences.primaryZoneType,
         alertsEnabled,
       },
-      householdSize: profile.householdSize,
-      householdComposition: [...profile.householdComposition],
-      primaryCommuteMode: profile.primaryCommuteMode,
-      outdoorActivityPattern: profile.outdoorActivityPattern,
-      ventilationContext: profile.ventilationContext,
-      hasIndoorAirPurifier: profile.hasIndoorAirPurifier,
-      heatingType: profile.heatingType,
       lifestylePreferences: {
         preferredGuidanceFocus,
         reminderCadence,
       },
-      onboardingCompleted: profile.onboardingCompleted,
-    };
+    });
 
     try {
       await apiClient.saveHouseholdProfile(nextInput);

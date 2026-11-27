@@ -85,98 +85,72 @@ export interface AirQualityRequestOptions {
   readonly forceRefresh?: boolean;
 }
 
+type QueryParamValue = string | number | boolean | undefined;
+
+function buildQueryString(entries: Readonly<Record<string, QueryParamValue>>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(entries)) {
+    if (value !== undefined && value !== '') {
+      params.set(key, String(value));
+    }
+  }
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
 function buildAirQualityQueryString(query?: AirQualityRequestOptions): string {
   if (!query) {
     return '';
   }
-  const params = new URLSearchParams();
-  if (query.latitude !== undefined && query.longitude !== undefined) {
-    params.set('latitude', String(query.latitude));
-    params.set('longitude', String(query.longitude));
-  }
-  if (query.hours !== undefined) {
-    params.set('hours', String(query.hours));
-  }
-  if (query.scale !== undefined) {
-    params.set('scale', query.scale);
-  }
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : '';
+  const hasCoords = query.latitude !== undefined && query.longitude !== undefined;
+  return buildQueryString({
+    latitude: hasCoords ? query.latitude : undefined,
+    longitude: hasCoords ? query.longitude : undefined,
+    hours: query.hours,
+    scale: query.scale,
+  });
 }
 
 function buildRoutinesQueryString(query?: RoutinesQueryInput): string {
-  if (!query) {
-    return '';
-  }
-  const params = new URLSearchParams();
-  if (query.date) {
-    params.set('date', query.date);
-  }
-  if (query.commuteMode) {
-    params.set('commuteMode', query.commuteMode);
-  }
-  if (query.outdoorActivityPattern) {
-    params.set('outdoorActivityPattern', query.outdoorActivityPattern);
-  }
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : '';
+  return query
+    ? buildQueryString({
+        date: query.date,
+        commuteMode: query.commuteMode,
+        outdoorActivityPattern: query.outdoorActivityPattern,
+      })
+    : '';
 }
 
 function buildIndoorQueryString(query?: IndoorGuidanceQueryInput): string {
-  if (!query?.scenario) {
-    return '';
-  }
-  const params = new URLSearchParams();
-  params.set('scenario', query.scenario);
-  return `?${params.toString()}`;
+  return buildQueryString({ scenario: query?.scenario });
 }
 
 function buildAlternativesQueryString(query?: AlternativesQueryInput): string {
-  if (!query) {
-    return '';
-  }
-  const params = new URLSearchParams();
-  if (query.category) {
-    params.set('category', query.category);
-  }
-  if (query.affordability) {
-    params.set('affordability', query.affordability);
-  }
-  if (query.relevance) {
-    params.set('relevance', query.relevance);
-  }
-  if (query.impactType) {
-    params.set('impactType', query.impactType);
-  }
-  if (query.practicality) {
-    params.set('practicality', query.practicality);
-  }
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : '';
+  return query
+    ? buildQueryString({
+        category: query.category,
+        affordability: query.affordability,
+        relevance: query.relevance,
+        impactType: query.impactType,
+        practicality: query.practicality,
+      })
+    : '';
 }
 
 function buildAlternativesCompareQueryString(query: AlternativesCompareQueryInput): string {
-  const params = new URLSearchParams();
-  params.set('alternativeId', query.alternativeId);
-  if (query.currentOption) {
-    params.set('currentOption', query.currentOption);
-  }
-  return `?${params.toString()}`;
+  return buildQueryString({
+    alternativeId: query.alternativeId,
+    currentOption: query.currentOption,
+  });
 }
 
 function buildAdvisoryBriefingQueryString(query?: AdvisoryBriefingQueryInput): string {
-  if (!query) {
-    return '';
-  }
-  const params = new URLSearchParams();
-  if (query.focus) {
-    params.set('focus', query.focus);
-  }
-  if (query.forceRefresh) {
-    params.set('forceRefresh', 'true');
-  }
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : '';
+  return query
+    ? buildQueryString({
+        focus: query.focus,
+        forceRefresh: query.forceRefresh ? 'true' : undefined,
+      })
+    : '';
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -202,14 +176,20 @@ export function createApiClient(options: ApiClientOptions = {}) {
       headers,
     });
 
-    const payload = (await response.json()) as ApiResponse<T>;
-    if (!response.ok || !payload.success) {
-      const errBody = payload as ApiErrorResponse;
+    let payload: ApiResponse<T> | null = null;
+    try {
+      payload = (await response.json()) as ApiResponse<T>;
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok || !payload?.success) {
+      const errBody = payload as ApiErrorResponse | null;
       throw new ApiClientError({
-        message: errBody.error?.message ?? `Request failed with status ${response.status}.`,
+        message: errBody?.error?.message ?? `Request failed with status ${response.status}.`,
         statusCode: response.status,
-        code: errBody.error?.code ?? 'INTERNAL_ERROR',
-        requestId: errBody.meta?.requestId ?? 'unknown',
+        code: errBody?.error?.code ?? 'INTERNAL_ERROR',
+        requestId: errBody?.meta?.requestId ?? 'unknown',
       });
     }
 

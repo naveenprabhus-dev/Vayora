@@ -1,8 +1,12 @@
 import { LogOut, PanelLeftClose, PanelLeftOpen, Shield } from 'lucide-react';
-import type { MouseEvent } from 'react';
 import { buildWorkspaceUrl } from '../../app/routing.ts';
 import type { AuthUserSnapshot } from '../../lib/authService.ts';
 import { WORKSPACE_NAV_ITEMS, type WorkspacePageId } from './navConfig.ts';
+import {
+  ACCOUNT_GROUP_ITEMS,
+  WORKSPACE_GROUP_ITEMS,
+  handleWorkspaceLinkClick,
+} from './navigationUtils.ts';
 
 export interface DesktopSidebarProps {
   readonly activePage: WorkspacePageId;
@@ -21,17 +25,6 @@ export function DesktopSidebar({
   onNavigate,
   onSignOut,
 }: DesktopSidebarProps) {
-  const workspaceItems = WORKSPACE_NAV_ITEMS.filter((item) => item.group === 'workspace');
-  const accountItems = WORKSPACE_NAV_ITEMS.filter((item) => item.group === 'account');
-
-  function handleNavClick(event: MouseEvent<HTMLAnchorElement>, pageId: WorkspacePageId) {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
-      return;
-    }
-    event.preventDefault();
-    onNavigate(pageId);
-  }
-
   function renderNavItems(items: typeof WORKSPACE_NAV_ITEMS) {
     return items.map((item) => {
       const Icon = item.Icon;
@@ -46,7 +39,7 @@ export function DesktopSidebar({
           aria-label={item.label}
           title={isCollapsed ? item.label : undefined}
           data-testid={`sidebar-nav-${item.id}`}
-          onClick={(e) => handleNavClick(e, item.id)}
+          onClick={(e) => handleWorkspaceLinkClick(e, item.id, onNavigate)}
           className={`group relative flex min-h-11 items-center rounded-lg border text-sm whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F5132] ${
             isCollapsed ? 'justify-center px-2.5' : 'gap-3 px-3'
           } ${
@@ -92,7 +85,7 @@ export function DesktopSidebar({
         {!isCollapsed ? (
           <a
             href={buildWorkspaceUrl('overview')}
-            onClick={(e) => handleNavClick(e, 'overview')}
+            onClick={(e) => handleWorkspaceLinkClick(e, 'overview', onNavigate)}
             className="flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F5132]"
           >
             <Shield className="h-5 w-5 shrink-0 text-[#0F5132]" aria-hidden="true" />
@@ -120,9 +113,9 @@ export function DesktopSidebar({
       </div>
 
       <nav aria-label="Primary navigation" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        <div className="space-y-1">{renderNavItems(workspaceItems)}</div>
+        <div className="space-y-1">{renderNavItems(WORKSPACE_GROUP_ITEMS)}</div>
         <hr className="my-3 border-0 border-t border-slate-200" />
-        <div className="space-y-1">{renderNavItems(accountItems)}</div>
+        <div className="space-y-1">{renderNavItems(ACCOUNT_GROUP_ITEMS)}</div>
       </nav>
 
       <div className="border-t border-slate-200 p-3">

@@ -1,13 +1,18 @@
 import type {
   CommuteMode,
-  DailyRoutineResponse,
   HouseholdLifestyleRecord,
   OutdoorActivityPattern,
 } from '@uaqa/contracts';
-import { useCallback, useEffect, useState } from 'react';
-import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
+import { useCallback, useState } from 'react';
+import {
+  AlertBanner,
+  Button,
+  SurfaceCard,
+  WorkspaceErrorRetryBanner,
+  WorkspaceLoadingCard,
+} from '../../components/index.ts';
+import { useWorkspaceResource } from '../../hooks/useWorkspaceResource.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
-import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import { buildProfileSyncKey } from '../../lib/profileSync.ts';
 import { BetterTimeWindowsPanel } from './BetterTimeWindowsPanel.tsx';
 import { CommuteStrategyPanel } from './CommuteStrategyPanel.tsx';
@@ -31,10 +36,6 @@ export function DailyRoutinesWorkspace({
   airQualitySyncToken,
   onSessionIssue,
 }: DailyRoutinesWorkspaceProps) {
-  const [routineData, setRoutineData] = useState<DailyRoutineResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [impactFilter, setImpactFilter] = useState<ImpactFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [scenarioCommute, setScenarioCommute] = useState<CommuteMode | undefined>(undefined);
@@ -43,72 +44,48 @@ export function DailyRoutinesWorkspace({
   );
 
   const profileSyncKey = buildProfileSyncKey(profile);
+  const enabled = profileSyncKey.length > 0 && airQualitySyncToken !== '__never__';
+  const requestKey = `${profileSyncKey}|${airQualitySyncToken ?? ''}|${scenarioCommute ?? ''}|${scenarioOutdoor ?? ''}`;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadRoutines() {
-      setLoadError(null);
-      try {
-        const query = {
-          ...(scenarioCommute !== undefined ? { commuteMode: scenarioCommute } : {}),
-          ...(scenarioOutdoor !== undefined ? { outdoorActivityPattern: scenarioOutdoor } : {}),
-        };
-        const response = await apiClient.getDailyRoutines(query);
-        if (!cancelled) {
-          setRoutineData(response);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          onSessionIssue?.(error);
-          setLoadError(formatWorkspaceError(error, 'Low-Emission Daily Routines'));
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-          setIsRefreshing(false);
-        }
-      }
-    }
+  const fetcher = useCallback(
+    () =>
+      apiClient.getDailyRoutines({
+        ...(scenarioCommute !== undefined ? { commuteMode: scenarioCommute } : {}),
+        ...(scenarioOutdoor !== undefined ? { outdoorActivityPattern: scenarioOutdoor } : {}),
+      }),
+    [apiClient, scenarioCommute, scenarioOutdoor],
+  );
 
-    if (profileSyncKey.length > 0 && airQualitySyncToken !== '__never__') {
-      void loadRoutines();
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    apiClient,
-    profileSyncKey,
-    airQualitySyncToken,
-    scenarioCommute,
-    scenarioOutdoor,
-    onSessionIssue,
-  ]);
-
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setLoadError(null);
-    try {
-      const response = await apiClient.refreshDailyRoutines({
+  const refresher = useCallback(
+    () =>
+      apiClient.refreshDailyRoutines({
         forceRefresh: true,
         ...(scenarioCommute !== undefined ? { commuteMode: scenarioCommute } : {}),
         ...(scenarioOutdoor !== undefined ? { outdoorActivityPattern: scenarioOutdoor } : {}),
-      });
-      setRoutineData(response);
-    } catch (error) {
-      onSessionIssue?.(error);
-      setLoadError(formatWorkspaceError(error, 'Low-Emission Daily Routines'));
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [apiClient, onSessionIssue, scenarioCommute, scenarioOutdoor]);
+      }),
+    [apiClient, scenarioCommute, scenarioOutdoor],
+  );
+
+  const {
+    data: routineData,
+    error: loadError,
+    isLoading,
+    isRefreshing,
+    refresh,
+  } = useWorkspaceResource({
+    requestKey,
+    enabled,
+    moduleLabel: 'Low-Emission Daily Routines',
+    fetcher,
+    refresher,
+    onSessionIssue,
+  });
 
   const handleChangeScenario = useCallback(
     (next: {
       readonly commuteMode?: CommuteMode;
       readonly outdoorActivityPattern?: OutdoorActivityPattern;
     }) => {
-      setIsRefreshing(true);
       if (next.commuteMode !== undefined) {
         setScenarioCommute(
           next.commuteMode === profile.primaryCommuteMode ? undefined : next.commuteMode,
@@ -126,34 +103,28 @@ export function DailyRoutinesWorkspace({
   );
 
   const handleResetScenario = useCallback(() => {
-    setIsRefreshing(true);
     setScenarioCommute(undefined);
     setScenarioOutdoor(undefined);
   }, []);
 
   if (isLoading && !routineData) {
     return (
-      <SurfaceCard as="section" aria-labelledby="routines-loading-heading">
-        <output aria-live="polite" className="block space-y-2 text-sm text-slate-700">
-          <p id="routines-loading-heading" className="font-semibold text-slate-950">
-            Generating Low-Emission Daily Routines...
-          </p>
-          <p>Evaluating your saved household profile and {profile.city} forecast windows.</p>
-        </output>
-      </SurfaceCard>
+      <WorkspaceLoadingCard
+        headingId="routines-loading-heading"
+        title="Generating Low-Emission Daily Routines..."
+        description={`Evaluating your saved household profile and ${profile.city} forecast windows.`}
+      />
     );
   }
 
   if (loadError && !routineData) {
     return (
-      <AlertBanner tone="error" title="Daily routine generation failed">
-        <p>{loadError}</p>
-        <div className="mt-3">
-          <Button type="button" variant="secondary" onClick={() => void handleRefresh()}>
-            Retry daily routines
-          </Button>
-        </div>
-      </AlertBanner>
+      <WorkspaceErrorRetryBanner
+        title="Daily routine generation failed"
+        error={loadError}
+        retryLabel="Retry daily routines"
+        onRetry={() => void refresh()}
+      />
     );
   }
 
@@ -189,7 +160,7 @@ export function DailyRoutinesWorkspace({
         onSelectPeriodFilter={setPeriodFilter}
         onChangeScenario={handleChangeScenario}
         onResetScenario={handleResetScenario}
-        onRefresh={() => void handleRefresh()}
+        onRefresh={() => void refresh()}
       />
 
       <BetterTimeWindowsPanel betterTimeWindows={routineData.betterTimeWindows} />

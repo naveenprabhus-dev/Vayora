@@ -1,8 +1,13 @@
 import { LogOut, Shield, X } from 'lucide-react';
-import { useEffect, useRef, type MouseEvent, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { buildWorkspaceUrl } from '../../app/routing.ts';
 import type { AuthUserSnapshot } from '../../lib/authService.ts';
 import { WORKSPACE_NAV_ITEMS, type WorkspacePageId } from './navConfig.ts';
+import {
+  ACCOUNT_GROUP_ITEMS,
+  WORKSPACE_GROUP_ITEMS,
+  handleWorkspaceLinkClick,
+} from './navigationUtils.ts';
 
 export interface MobileNavDrawerProps {
   readonly isOpen: boolean;
@@ -84,21 +89,9 @@ export function MobileNavDrawer({
     return null;
   }
 
-  const workspaceItems = WORKSPACE_NAV_ITEMS.filter((item) => item.group === 'workspace');
-  const accountItems = WORKSPACE_NAV_ITEMS.filter((item) => item.group === 'account');
-
   function handleDismiss() {
     onClose(true);
     window.setTimeout(() => returnFocusRef.current?.focus(), 0);
-  }
-
-  function handleSelectPage(event: MouseEvent<HTMLAnchorElement>, pageId: WorkspacePageId) {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
-      return;
-    }
-    event.preventDefault();
-    onClose(false);
-    onNavigate(pageId);
   }
 
   function renderDrawerItems(items: typeof WORKSPACE_NAV_ITEMS) {
@@ -111,7 +104,7 @@ export function MobileNavDrawer({
           href={buildWorkspaceUrl(item.id)}
           aria-current={isActive ? 'page' : undefined}
           data-testid={`mobile-nav-${item.id}`}
-          onClick={(e) => handleSelectPage(e, item.id)}
+          onClick={(e) => handleWorkspaceLinkClick(e, item.id, onNavigate, () => onClose(false))}
           className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F5132] ${
             isActive
               ? 'border-emerald-200 bg-emerald-50 font-semibold text-[#0F5132]'
@@ -166,9 +159,9 @@ export function MobileNavDrawer({
           aria-label="Mobile primary navigation"
           className="flex-1 space-y-1 overflow-y-auto px-3 py-4"
         >
-          <div className="space-y-1">{renderDrawerItems(workspaceItems)}</div>
+          <div className="space-y-1">{renderDrawerItems(WORKSPACE_GROUP_ITEMS)}</div>
           <hr className="my-3 border-0 border-t border-slate-200" />
-          <div className="space-y-1">{renderDrawerItems(accountItems)}</div>
+          <div className="space-y-1">{renderDrawerItems(ACCOUNT_GROUP_ITEMS)}</div>
         </nav>
 
         <div className="border-t border-slate-200 p-4">

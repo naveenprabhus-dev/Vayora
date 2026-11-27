@@ -4,8 +4,15 @@ import type {
   HouseholdLifestyleRecord,
   SustainableAlternativesResponse,
 } from '@uaqa/contracts';
-import { useCallback, useEffect, useState } from 'react';
-import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
+import { useCallback, useState } from 'react';
+import {
+  AlertBanner,
+  Button,
+  SurfaceCard,
+  WorkspaceErrorRetryBanner,
+  WorkspaceLoadingCard,
+} from '../../components/index.ts';
+import { useWorkspaceResource } from '../../hooks/useWorkspaceResource.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import { formatWorkspaceError } from '../../lib/errorMessages.ts';
 import { buildProfileSyncKey } from '../../lib/profileSync.ts';
@@ -33,9 +40,6 @@ export function SustainableAlternativesWorkspace({
   airQualitySyncToken,
   onSessionIssue,
 }: SustainableAlternativesWorkspaceProps) {
-  const [alternativesData, setAlternativesData] = useState<SustainableAlternativesResponse | null>(
-    null,
-  );
   const [selectedComparison, setSelectedComparison] = useState<AlternativeComparisonView | null>(
     null,
   );
@@ -44,98 +48,71 @@ export function SustainableAlternativesWorkspace({
   const [relevanceFilter, setRelevanceFilter] = useState<RelevanceFilter>('all');
   const [impactFilter, setImpactFilter] = useState<ImpactClassificationFilter>('all');
   const [practicalityFilter, setPracticalityFilter] = useState<PracticalityFilter>('all');
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [compareError, setCompareError] = useState<string | null>(null);
 
   const profileSyncKey = buildProfileSyncKey(profile);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadAlternatives() {
-      setLoadError(null);
-      try {
-        const query: AlternativesQueryInput = {
-          ...(categoryFilter !== 'all' ? { category: categoryFilter } : {}),
-          ...(affordabilityFilter !== 'all' ? { affordability: affordabilityFilter } : {}),
-          ...(relevanceFilter !== 'all' ? { relevance: relevanceFilter } : {}),
-          ...(impactFilter !== 'all' ? { impactType: impactFilter } : {}),
-          ...(practicalityFilter !== 'all' ? { practicality: practicalityFilter } : {}),
-        };
-        const response = await apiClient.getSustainableAlternatives(query);
-        if (!cancelled) {
-          setAlternativesData(response);
-          setSelectedComparison(response.featuredComparison);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          onSessionIssue?.(error);
-          setLoadError(formatWorkspaceError(error, 'Sustainable Alternatives Advisor'));
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-          setIsRefreshing(false);
-        }
-      }
-    }
-
-    if (profileSyncKey.length > 0 && airQualitySyncToken !== '__never__') {
-      void loadAlternatives();
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    apiClient,
-    airQualitySyncToken,
-    categoryFilter,
-    affordabilityFilter,
-    relevanceFilter,
-    impactFilter,
-    practicalityFilter,
+  const enabled = profileSyncKey.length > 0 && airQualitySyncToken !== '__never__';
+  const requestKey = [
     profileSyncKey,
-    onSessionIssue,
-  ]);
-
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setLoadError(null);
-    try {
-      const response = await apiClient.refreshSustainableAlternatives({
-        forceRefresh: true,
-        ...(categoryFilter !== 'all' ? { category: categoryFilter } : {}),
-        ...(affordabilityFilter !== 'all' ? { affordability: affordabilityFilter } : {}),
-        ...(relevanceFilter !== 'all' ? { relevance: relevanceFilter } : {}),
-        ...(impactFilter !== 'all' ? { impactType: impactFilter } : {}),
-        ...(practicalityFilter !== 'all' ? { practicality: practicalityFilter } : {}),
-      });
-      setAlternativesData(response);
-      setSelectedComparison(response.featuredComparison);
-    } catch (error) {
-      onSessionIssue?.(error);
-      setLoadError(formatWorkspaceError(error, 'Sustainable Alternatives Advisor'));
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [
-    apiClient,
+    airQualitySyncToken ?? '',
     categoryFilter,
     affordabilityFilter,
     relevanceFilter,
     impactFilter,
     practicalityFilter,
+  ].join('|');
+
+  const buildFilterQuery = useCallback(
+    (): AlternativesQueryInput => ({
+      ...(categoryFilter !== 'all' ? { category: categoryFilter } : {}),
+      ...(affordabilityFilter !== 'all' ? { affordability: affordabilityFilter } : {}),
+      ...(relevanceFilter !== 'all' ? { relevance: relevanceFilter } : {}),
+      ...(impactFilter !== 'all' ? { impactType: impactFilter } : {}),
+      ...(practicalityFilter !== 'all' ? { practicality: practicalityFilter } : {}),
+    }),
+    [categoryFilter, affordabilityFilter, relevanceFilter, impactFilter, practicalityFilter],
+  );
+
+  const fetcher = useCallback(
+    () => apiClient.getSustainableAlternatives(buildFilterQuery()),
+    [apiClient, buildFilterQuery],
+  );
+
+  const refresher = useCallback(
+    () =>
+      apiClient.refreshSustainableAlternatives({
+        forceRefresh: true,
+        ...buildFilterQuery(),
+      }),
+    [apiClient, buildFilterQuery],
+  );
+
+  const handleAlternativesLoaded = useCallback((response: SustainableAlternativesResponse) => {
+    setSelectedComparison(response.featuredComparison);
+    setCompareError(null);
+  }, []);
+
+  const {
+    data: alternativesData,
+    error: loadError,
+    isLoading,
+    isRefreshing,
+    refresh,
+  } = useWorkspaceResource({
+    requestKey,
+    enabled,
+    moduleLabel: 'Sustainable Alternatives Advisor',
+    fetcher,
+    refresher,
+    onLoaded: handleAlternativesLoaded,
     onSessionIssue,
-  ]);
+  });
 
   const handleCompare = useCallback(
     async (alternativeId: string, currentOption?: string) => {
       setIsComparing(true);
-      setLoadError(null);
+      setCompareError(null);
       try {
         const comparison = await apiClient.compareSustainableAlternative({
           alternativeId,
@@ -144,7 +121,7 @@ export function SustainableAlternativesWorkspace({
         setSelectedComparison(comparison);
       } catch (error) {
         onSessionIssue?.(error);
-        setLoadError(formatWorkspaceError(error, 'Sustainable Choice Comparison'));
+        setCompareError(formatWorkspaceError(error, 'Sustainable Choice Comparison'));
       } finally {
         setIsComparing(false);
       }
@@ -153,7 +130,6 @@ export function SustainableAlternativesWorkspace({
   );
 
   const handleResetFilters = useCallback(() => {
-    setIsRefreshing(true);
     setCategoryFilter('all');
     setAffordabilityFilter('all');
     setRelevanceFilter('all');
@@ -163,30 +139,22 @@ export function SustainableAlternativesWorkspace({
 
   if (isLoading && !alternativesData) {
     return (
-      <SurfaceCard as="section" aria-labelledby="alternatives-loading-heading">
-        <output aria-live="polite" className="block space-y-2 text-sm text-slate-700">
-          <p id="alternatives-loading-heading" className="font-semibold text-slate-950">
-            Preparing Sustainable Alternatives Advisor...
-          </p>
-          <p>
-            Evaluating practical transport, household energy, everyday habit, and waste choices for{' '}
-            {profile.city}.
-          </p>
-        </output>
-      </SurfaceCard>
+      <WorkspaceLoadingCard
+        headingId="alternatives-loading-heading"
+        title="Preparing Sustainable Alternatives Advisor..."
+        description={`Evaluating practical transport, household energy, everyday habit, and waste choices for ${profile.city}.`}
+      />
     );
   }
 
   if (loadError && !alternativesData) {
     return (
-      <AlertBanner tone="error" title="Sustainable Alternatives Advisor failed to load">
-        <p>{loadError}</p>
-        <div className="mt-3">
-          <Button type="button" variant="secondary" onClick={() => void handleRefresh()}>
-            Retry alternatives
-          </Button>
-        </div>
-      </AlertBanner>
+      <WorkspaceErrorRetryBanner
+        title="Sustainable Alternatives Advisor failed to load"
+        error={loadError}
+        retryLabel="Retry alternatives"
+        onRetry={() => void refresh()}
+      />
     );
   }
 
@@ -194,11 +162,13 @@ export function SustainableAlternativesWorkspace({
     return null;
   }
 
+  const activeError = loadError ?? compareError;
+
   return (
     <div className="space-y-6" data-testid="sustainable-alternatives-workspace">
-      {loadError ? (
+      {activeError ? (
         <AlertBanner tone="error" title="Alternatives notice">
-          <p>{loadError}</p>
+          <p>{activeError}</p>
         </AlertBanner>
       ) : null}
 
@@ -210,28 +180,13 @@ export function SustainableAlternativesWorkspace({
         impactFilter={impactFilter}
         practicalityFilter={practicalityFilter}
         isRefreshing={isRefreshing}
-        onSelectCategory={(val) => {
-          setIsRefreshing(true);
-          setCategoryFilter(val);
-        }}
-        onSelectAffordability={(val) => {
-          setIsRefreshing(true);
-          setAffordabilityFilter(val);
-        }}
-        onSelectRelevance={(val) => {
-          setIsRefreshing(true);
-          setRelevanceFilter(val);
-        }}
-        onSelectImpact={(val) => {
-          setIsRefreshing(true);
-          setImpactFilter(val);
-        }}
-        onSelectPracticality={(val) => {
-          setIsRefreshing(true);
-          setPracticalityFilter(val);
-        }}
+        onSelectCategory={setCategoryFilter}
+        onSelectAffordability={setAffordabilityFilter}
+        onSelectRelevance={setRelevanceFilter}
+        onSelectImpact={setImpactFilter}
+        onSelectPracticality={setPracticalityFilter}
         onResetFilters={handleResetFilters}
-        onRefresh={() => void handleRefresh()}
+        onRefresh={() => void refresh()}
       />
 
       {selectedComparison ? (

@@ -1,4 +1,4 @@
-import type { HouseholdLifestyleRecord } from '@uaqa/contracts';
+import type { HouseholdLifestyleInput, HouseholdLifestyleRecord } from '@uaqa/contracts';
 
 /**
  * Produces a deterministic primitive fingerprint covering all household profile
@@ -26,4 +26,37 @@ export function buildProfileSyncKey(profile: HouseholdLifestyleRecord): string {
     profile.heatingType,
     profile.lifestylePreferences.preferredGuidanceFocus,
   ].join('|');
+}
+
+/**
+ * Converts a persisted HouseholdLifestyleRecord into a mutable HouseholdLifestyleInput
+ * payload with optional top-level field overrides for update mutations.
+ */
+export function toHouseholdLifestyleInput(
+  profile: HouseholdLifestyleRecord,
+  overrides: Partial<HouseholdLifestyleInput> = {},
+): HouseholdLifestyleInput {
+  return {
+    country: profile.country,
+    city: profile.city,
+    neighborhood: profile.neighborhood,
+    postalPrefix: profile.postalPrefix,
+    locationPreferences: {
+      primaryZoneType: profile.locationPreferences.primaryZoneType,
+      alertsEnabled: profile.locationPreferences.alertsEnabled,
+    },
+    householdSize: profile.householdSize,
+    householdComposition: [...profile.householdComposition],
+    primaryCommuteMode: profile.primaryCommuteMode,
+    outdoorActivityPattern: profile.outdoorActivityPattern,
+    ventilationContext: profile.ventilationContext,
+    hasIndoorAirPurifier: profile.hasIndoorAirPurifier,
+    heatingType: profile.heatingType,
+    lifestylePreferences: {
+      preferredGuidanceFocus: profile.lifestylePreferences.preferredGuidanceFocus,
+      reminderCadence: profile.lifestylePreferences.reminderCadence,
+    },
+    onboardingCompleted: profile.onboardingCompleted,
+    ...overrides,
+  };
 }

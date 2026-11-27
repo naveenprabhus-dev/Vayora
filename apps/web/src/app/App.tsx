@@ -1,7 +1,6 @@
 import type { AuthenticatedPrincipal, HouseholdLifestyleRecord } from '@uaqa/contracts';
-import { LogOut, Shield } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertBanner, Button, SkipLink, SurfaceCard } from '../components/index.ts';
+import { AlertBanner, SurfaceCard } from '../components/index.ts';
 import { ForgotPasswordForm } from '../features/auth/ForgotPasswordForm.tsx';
 import { LoginForm } from '../features/auth/LoginForm.tsx';
 import { RegisterForm } from '../features/auth/RegisterForm.tsx';
@@ -16,8 +15,11 @@ import {
   type AuthUserSnapshot,
 } from '../lib/authService.ts';
 import type { HouseholdStore } from '../lib/householdStore.ts';
+import { createLazyFirestoreStore } from '../lib/lazyHouseholdStore.ts';
+import { toHouseholdLifestyleInput } from '../lib/profileSync.ts';
 import { createCachedWorkspaceApiClient } from '../lib/workspaceApiCache.ts';
 import { ErrorBoundary } from './ErrorBoundary.tsx';
+import { PublicAuthLayout } from './PublicAuthLayout.tsx';
 import {
   buildPublicUrl,
   buildWorkspaceUrl,
@@ -25,6 +27,7 @@ import {
   readInitialUrlState,
   type AppRoute,
 } from './routing.ts';
+import { ModuleLoadingFallback, WorkspaceRoutes } from './WorkspaceRoutes.tsx';
 
 const ResetPasswordForm = lazy(() =>
   import('../features/auth/ResetPasswordForm.tsx').then((mod) => ({
@@ -36,78 +39,6 @@ const HouseholdOnboardingWizard = lazy(() =>
     default: mod.HouseholdOnboardingWizard,
   })),
 );
-const OverviewPage = lazy(() =>
-  import('../pages/OverviewPage.tsx').then((mod) => ({
-    default: mod.OverviewPage,
-  })),
-);
-const AirQualityPage = lazy(() =>
-  import('../pages/AirQualityPage.tsx').then((mod) => ({
-    default: mod.AirQualityPage,
-  })),
-);
-const DailyRoutinesPage = lazy(() =>
-  import('../pages/DailyRoutinesPage.tsx').then((mod) => ({
-    default: mod.DailyRoutinesPage,
-  })),
-);
-const IndoorAirPage = lazy(() =>
-  import('../pages/IndoorAirPage.tsx').then((mod) => ({
-    default: mod.IndoorAirPage,
-  })),
-);
-const SustainableAlternativesPage = lazy(() =>
-  import('../pages/SustainableAlternativesPage.tsx').then((mod) => ({
-    default: mod.SustainableAlternativesPage,
-  })),
-);
-const HouseholdPage = lazy(() =>
-  import('../pages/HouseholdPage.tsx').then((mod) => ({
-    default: mod.HouseholdPage,
-  })),
-);
-const SettingsPage = lazy(() =>
-  import('../pages/SettingsPage.tsx').then((mod) => ({
-    default: mod.SettingsPage,
-  })),
-);
-
-function createLazyFirestoreStore(): HouseholdStore {
-  let storePromise: Promise<HouseholdStore> | null = null;
-  const loadStore = (): Promise<HouseholdStore> => {
-    if (!storePromise) {
-      storePromise = import('../lib/householdStore.ts').then(
-        (mod) => new mod.FirestoreHouseholdStore(),
-      );
-    }
-    return storePromise;
-  };
-
-  return {
-    async syncVerifiedUserAccount(user, termsAcceptedAtIso) {
-      const store = await loadStore();
-      return store.syncVerifiedUserAccount(user, termsAcceptedAtIso);
-    },
-    async getHouseholdProfile(uid) {
-      const store = await loadStore();
-      return store.getHouseholdProfile(uid);
-    },
-    async saveHouseholdProfile(uid, input) {
-      const store = await loadStore();
-      return store.saveHouseholdProfile(uid, input);
-    },
-  };
-}
-
-function ModuleLoadingFallback({ label }: { readonly label: string }) {
-  return (
-    <SurfaceCard as="section">
-      <output aria-live="polite" className="block text-sm text-slate-700">
-        Loading {label}...
-      </output>
-    </SurfaceCard>
-  );
-}
 
 export interface AppProps {
   readonly authService?: AuthService;
@@ -244,22 +175,9 @@ function UrbanAirQualityAppShell({
             await apiClient.getHouseholdProfile();
           } catch (error) {
             if (error instanceof ApiClientError && error.statusCode === 404) {
-              const synced = await apiClient.saveHouseholdProfile({
-                country: profile.country,
-                city: profile.city,
-                neighborhood: profile.neighborhood,
-                postalPrefix: profile.postalPrefix,
-                locationPreferences: profile.locationPreferences,
-                householdSize: profile.householdSize,
-                householdComposition: [...profile.householdComposition],
-                primaryCommuteMode: profile.primaryCommuteMode,
-                outdoorActivityPattern: profile.outdoorActivityPattern,
-                ventilationContext: profile.ventilationContext,
-                hasIndoorAirPurifier: profile.hasIndoorAirPurifier,
-                heatingType: profile.heatingType,
-                lifestylePreferences: profile.lifestylePreferences,
-                onboardingCompleted: profile.onboardingCompleted,
-              });
+              const synced = await apiClient.saveHouseholdProfile(
+                toHouseholdLifestyleInput(profile),
+              );
               profile = synced.profile;
             } else {
               throw error;
@@ -429,271 +347,138 @@ function UrbanAirQualityAppShell({
         ) : null}
 
         <ErrorBoundary>
-          <Suspense
-            fallback={<ModuleLoadingFallback label={getWorkspaceNavItem(workspacePage).label} />}
-          >
-            {workspacePage === 'overview' ? (
-              <OverviewPage
-                user={user}
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onNavigate={navigateWorkspacePage}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            ) : null}
-
-            {workspacePage === 'air-quality' ? (
-              <AirQualityPage
-                userId={user.uid}
-                profile={householdProfile}
-                apiClient={apiClient}
-                householdStore={householdStore}
-                onProfileUpdated={handleProfileUpdated}
-                onTelemetryUpdated={handleTelemetryUpdated}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            ) : null}
-
-            {workspacePage === 'daily-routines' ? (
-              <DailyRoutinesPage
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            ) : null}
-
-            {workspacePage === 'indoor-air' ? (
-              <IndoorAirPage
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            ) : null}
-
-            {workspacePage === 'sustainable-alternatives' ? (
-              <SustainableAlternativesPage
-                profile={householdProfile}
-                apiClient={apiClient}
-                airQualitySyncToken={airQualitySyncToken}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            ) : null}
-
-            {workspacePage === 'household' ? (
-              <HouseholdPage
-                user={user}
-                principal={principal}
-                profile={householdProfile}
-                apiClient={apiClient}
-                householdStore={householdStore}
-                onProfileUpdated={handleProfileUpdated}
-              />
-            ) : null}
-
-            {workspacePage === 'settings' ? (
-              <SettingsPage
-                user={user}
-                principal={principal}
-                profile={householdProfile}
-                authService={authService}
-                apiClient={apiClient}
-                householdStore={householdStore}
-                onProfileUpdated={handleProfileUpdated}
-                onSignOut={handleSignOut}
-                onSessionIssue={handleWorkspaceSessionIssue}
-              />
-            ) : null}
-          </Suspense>
+          <WorkspaceRoutes
+            workspacePage={workspacePage}
+            user={user}
+            principal={principal}
+            profile={householdProfile}
+            authService={authService}
+            apiClient={apiClient}
+            householdStore={householdStore}
+            airQualitySyncToken={airQualitySyncToken}
+            onNavigate={navigateWorkspacePage}
+            onProfileUpdated={handleProfileUpdated}
+            onTelemetryUpdated={handleTelemetryUpdated}
+            onSessionIssue={handleWorkspaceSessionIssue}
+            onSignOut={handleSignOut}
+          />
         </ErrorBoundary>
       </WorkspaceShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-      <SkipLink targetId="main-content" />
+    <PublicAuthLayout
+      route={route === 'workspace' ? 'login' : route}
+      user={user}
+      sessionError={sessionError}
+      onNavigatePublic={navigatePublicRoute}
+      onSignOut={handleSignOut}
+    >
+      {!authReady || isSyncingSession ? (
+        <SurfaceCard as="section" className="mx-auto max-w-lg">
+          <output aria-live="polite" className="block space-y-2 text-sm text-slate-700">
+            <p className="font-semibold text-slate-950">Verifying session...</p>
+            <p>Confirming authentication state and backend verification claims.</p>
+          </output>
+        </SurfaceCard>
+      ) : null}
 
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <Shield className="h-5 w-5 shrink-0 text-[#0F5132]" aria-hidden="true" />
-            <a
-              href="#main-content"
-              className="font-display text-base leading-snug font-bold tracking-tight text-slate-950 sm:text-lg"
-            >
-              VAYORA · Urban Air Quality Assistant
-            </a>
-          </div>
-
-          <nav
-            aria-label="Account navigation"
-            className="flex flex-wrap items-center gap-2 sm:gap-3"
-          >
-            {user ? (
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="hidden text-xs font-medium text-slate-700 sm:inline">
-                  {user.email}
-                </span>
-                <Button type="button" variant="secondary" onClick={() => void handleSignOut()}>
-                  <LogOut className="h-4 w-4" aria-hidden="true" />
-                  Sign out
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant={route === 'login' ? 'primary' : 'secondary'}
-                  onClick={() => navigatePublicRoute('login')}
-                >
-                  Sign in
-                </Button>
-                <Button
-                  type="button"
-                  variant={route === 'register' ? 'primary' : 'secondary'}
-                  onClick={() => navigatePublicRoute('register')}
-                >
-                  Create account
-                </Button>
-              </div>
-            )}
-          </nav>
-        </div>
-      </header>
-
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 sm:px-6 sm:py-10"
-      >
-        {sessionError ? (
-          <AlertBanner tone="error" title="Session security notice">
-            <p>{sessionError}</p>
-          </AlertBanner>
-        ) : null}
-
-        {!authReady || isSyncingSession ? (
-          <SurfaceCard as="section" className="mx-auto max-w-lg">
-            <output aria-live="polite" className="block space-y-2 text-sm text-slate-700">
-              <p className="font-semibold text-slate-950">Verifying session...</p>
-              <p>Confirming authentication state and backend verification claims.</p>
-            </output>
-          </SurfaceCard>
-        ) : null}
-
-        {authReady && !isSyncingSession && route === 'login' && !user ? (
-          <LoginForm
-            authService={authService}
-            statusMessage={statusMessage}
-            onAuthenticated={async (loggedInUser) => {
-              setStatusMessage(undefined);
-              setUser(loggedInUser);
-              if (!loggedInUser.emailVerified) {
-                setRoute('verify-email');
-                return;
-              }
-              await hydrateVerifiedWorkspace(loggedInUser);
-            }}
-            onNavigateRegister={() => navigatePublicRoute('register')}
-            onNavigateForgotPassword={() => navigatePublicRoute('forgot-password')}
-          />
-        ) : null}
-
-        {authReady && !isSyncingSession && route === 'register' && !user ? (
-          <RegisterForm
-            authService={authService}
-            onRegistered={(registeredUser, acceptedAtIso) => {
-              setPendingTermsIso(acceptedAtIso);
-              setUser(registeredUser);
-              setStatusMessage(undefined);
+      {authReady && !isSyncingSession && route === 'login' && !user ? (
+        <LoginForm
+          authService={authService}
+          statusMessage={statusMessage}
+          onAuthenticated={async (loggedInUser) => {
+            setStatusMessage(undefined);
+            setUser(loggedInUser);
+            if (!loggedInUser.emailVerified) {
               setRoute('verify-email');
-            }}
-            onNavigateLogin={() => navigatePublicRoute('login')}
-          />
-        ) : null}
+              return;
+            }
+            await hydrateVerifiedWorkspace(loggedInUser);
+          }}
+          onNavigateRegister={() => navigatePublicRoute('register')}
+          onNavigateForgotPassword={() => navigatePublicRoute('forgot-password')}
+        />
+      ) : null}
 
-        {authReady && !isSyncingSession && route === 'forgot-password' && !user ? (
-          <ForgotPasswordForm
+      {authReady && !isSyncingSession && route === 'register' && !user ? (
+        <RegisterForm
+          authService={authService}
+          onRegistered={(registeredUser, acceptedAtIso) => {
+            setPendingTermsIso(acceptedAtIso);
+            setUser(registeredUser);
+            setStatusMessage(undefined);
+            setRoute('verify-email');
+          }}
+          onNavigateLogin={() => navigatePublicRoute('login')}
+        />
+      ) : null}
+
+      {authReady && !isSyncingSession && route === 'forgot-password' && !user ? (
+        <ForgotPasswordForm
+          authService={authService}
+          apiClient={apiClient}
+          onNavigateLogin={() => navigatePublicRoute('login')}
+        />
+      ) : null}
+
+      {authReady && !isSyncingSession && route === 'reset-password' ? (
+        <Suspense fallback={<ModuleLoadingFallback label="password reset" />}>
+          <ResetPasswordForm
+            key={oobCode ?? ''}
+            oobCode={oobCode ?? ''}
             authService={authService}
-            apiClient={apiClient}
-            onNavigateLogin={() => navigatePublicRoute('login')}
-          />
-        ) : null}
-
-        {authReady && !isSyncingSession && route === 'reset-password' ? (
-          <Suspense fallback={<ModuleLoadingFallback label="password reset" />}>
-            <ResetPasswordForm
-              key={oobCode ?? ''}
-              oobCode={oobCode ?? ''}
-              authService={authService}
-              onResetComplete={() => {
-                setOobCode(null);
-                setStatusMessage('Your password has been updated. Sign in with your new password.');
-                setRoute('login');
-                pushHistoryUrl(buildPublicUrl('login'), { route: 'login' }, false);
-              }}
-              onRequestNewLink={() => navigatePublicRoute('forgot-password')}
-            />
-          </Suspense>
-        ) : null}
-
-        {authReady && !isSyncingSession && route === 'verify-email' && user ? (
-          <VerifyEmailScreen
-            user={user}
-            authService={authService}
-            apiClient={apiClient}
-            initialOobCode={oobCode}
-            onVerified={async (verifiedUser) => {
+            onResetComplete={() => {
               setOobCode(null);
-              setUser(verifiedUser);
-              await hydrateVerifiedWorkspace(verifiedUser, pendingTermsIso);
+              setStatusMessage('Your password has been updated. Sign in with your new password.');
+              setRoute('login');
+              pushHistoryUrl(buildPublicUrl('login'), { route: 'login' }, false);
             }}
-            onSignOut={handleSignOut}
+            onRequestNewLink={() => navigatePublicRoute('forgot-password')}
           />
-        ) : null}
+        </Suspense>
+      ) : null}
 
-        {authReady && !isSyncingSession && user && principal && route === 'onboarding' ? (
-          <Suspense fallback={<ModuleLoadingFallback label="household setup" />}>
-            <HouseholdOnboardingWizard
-              user={user}
-              initialProfile={householdProfile}
-              isEditingExisting={false}
-              apiClient={apiClient}
-              householdStore={householdStore}
-              onSaved={(savedRecord, completed) => {
-                apiClient.invalidateWorkspaceCache();
-                setHouseholdProfile(savedRecord);
-                if (completed) {
-                  const targetPage = intendedWorkspacePageRef.current ?? 'overview';
-                  intendedWorkspacePageRef.current = null;
-                  setStatusMessage('Your household location and lifestyle preferences are saved.');
-                  setWorkspacePage(targetPage);
-                  setRoute('workspace');
-                  pushHistoryUrl(
-                    buildWorkspaceUrl(targetPage),
-                    { workspacePage: targetPage },
-                    true,
-                  );
-                }
-              }}
-            />
-          </Suspense>
-        ) : null}
-      </main>
+      {authReady && !isSyncingSession && route === 'verify-email' && user ? (
+        <VerifyEmailScreen
+          user={user}
+          authService={authService}
+          apiClient={apiClient}
+          initialOobCode={oobCode}
+          onVerified={async (verifiedUser) => {
+            setOobCode(null);
+            setUser(verifiedUser);
+            await hydrateVerifiedWorkspace(verifiedUser, pendingTermsIso);
+          }}
+          onSignOut={handleSignOut}
+        />
+      ) : null}
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6 text-xs text-slate-600">
-          <p>
-            VAYORA · Urban Air Quality Assistant · Intelligence, Routines, Indoor Air &amp;
-            Alternatives
-          </p>
-          <p>Verified Accounts Only · WCAG 2.2 AA · Open-Meteo CC BY 4.0</p>
-        </div>
-      </footer>
-    </div>
+      {authReady && !isSyncingSession && user && principal && route === 'onboarding' ? (
+        <Suspense fallback={<ModuleLoadingFallback label="household setup" />}>
+          <HouseholdOnboardingWizard
+            user={user}
+            initialProfile={householdProfile}
+            isEditingExisting={false}
+            apiClient={apiClient}
+            householdStore={householdStore}
+            onSaved={(savedRecord, completed) => {
+              apiClient.invalidateWorkspaceCache();
+              setHouseholdProfile(savedRecord);
+              if (completed) {
+                const targetPage = intendedWorkspacePageRef.current ?? 'overview';
+                intendedWorkspacePageRef.current = null;
+                setStatusMessage('Your household location and lifestyle preferences are saved.');
+                setWorkspacePage(targetPage);
+                setRoute('workspace');
+                pushHistoryUrl(buildWorkspaceUrl(targetPage), { workspacePage: targetPage }, true);
+              }
+            }}
+          />
+        </Suspense>
+      ) : null}
+    </PublicAuthLayout>
   );
 }
 
