@@ -655,11 +655,7 @@ function UrbanAirQualityAppShell({
           />
         ) : null}
 
-        {authReady &&
-        !isSyncingSession &&
-        user &&
-        principal &&
-        route === 'onboarding' ? (
+        {authReady && !isSyncingSession && user && principal && route === 'onboarding' ? (
           <Suspense fallback={<ModuleLoadingFallback label="household setup" />}>
             <HouseholdOnboardingWizard
               user={user}
@@ -676,7 +672,11 @@ function UrbanAirQualityAppShell({
                   setStatusMessage('Your household location and lifestyle preferences are saved.');
                   setWorkspacePage(targetPage);
                   setRoute('workspace');
-                  pushHistoryUrl(buildWorkspaceUrl(targetPage), { workspacePage: targetPage }, true);
+                  pushHistoryUrl(
+                    buildWorkspaceUrl(targetPage),
+                    { workspacePage: targetPage },
+                    true,
+                  );
                 }
               }}
             />
@@ -699,7 +699,7 @@ function UrbanAirQualityAppShell({
 
 export function App(props: AppProps = {}) {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary landmark="main">
       <UrbanAirQualityAppShell {...props} />
     </ErrorBoundary>
   );

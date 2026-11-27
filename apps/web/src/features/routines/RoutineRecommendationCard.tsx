@@ -36,7 +36,7 @@ export function RoutineRecommendationCard({ item }: RoutineRecommendationCardPro
         <span aria-hidden="true" className="text-slate-400">
           ·
         </span>
-        <span className="text-slate-700">{CATEGORY_LABELS[item.category]}</span>
+        <span className="text-slate-700">{CATEGORY_LABELS[item.category] ?? 'Daily routine'}</span>
         <span aria-hidden="true" className="text-slate-400">
           ·
         </span>
@@ -45,7 +45,8 @@ export function RoutineRecommendationCard({ item }: RoutineRecommendationCardPro
 
       <h4 className="mt-2.5 text-lg font-bold text-slate-950">{item.title}</h4>
       <p className="mt-1 text-xs font-medium text-slate-700">
-        {item.statusReason} · Basis: {INFORMATION_BASIS_LABELS[item.informationBasis]}
+        {item.statusReason} · Basis:{' '}
+        {INFORMATION_BASIS_LABELS[item.informationBasis] ?? 'Environmental rule'}
       </p>
 
       <dl className="mt-4 space-y-2.5 border-t border-slate-200/80 pt-3.5 text-sm text-slate-900">

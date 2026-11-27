@@ -18,7 +18,10 @@ import {
   getGenerationModeVisual,
   getSourceModuleLabel,
 } from '../features/advisory/advisoryStyles.ts';
-import { formatIsoTimestamp, getAqiSeverityVisual } from '../features/air-quality/severityStyles.ts';
+import {
+  formatIsoTimestamp,
+  getAqiSeverityVisual,
+} from '../features/air-quality/severityStyles.ts';
 import { WORKSPACE_NAV_ITEMS, type WorkspacePageId } from '../features/navigation/navConfig.ts';
 import { getRoutineStatusVisual } from '../features/routines/routineStyles.ts';
 import type { WebApiClient } from '../lib/apiClient.ts';
@@ -100,24 +103,46 @@ export function OverviewPage({
   onNavigate,
   onSessionIssue,
 }: OverviewPageProps) {
-  const [aqData, setAqData] = useState<AirQualityCurrentResponse | null>(null);
-  const [aqError, setAqError] = useState<string | null>(null);
-  const [isLoadingAq, setIsLoadingAq] = useState(true);
+  const [selectedFocus, setSelectedFocus] = useState<AdvisoryExplanationFocus>('balanced');
+  const profileSyncKey = buildProfileSyncKey(profile);
+  const aqRequestKey = `${profileSyncKey}|${airQualitySyncToken ?? ''}`;
+  const briefingRequestKey = `${aqRequestKey}|${selectedFocus}`;
 
-  const [briefing, setBriefing] = useState<PersonalizedBriefingResponse | null>(null);
-  const [briefingError, setBriefingError] = useState<string | null>(null);
-  const [isLoadingBriefing, setIsLoadingBriefing] = useState(true);
+  const [aqState, setAqState] = useState<{
+    readonly key: string;
+    readonly data: AirQualityCurrentResponse | null;
+    readonly error: string | null;
+  } | null>(null);
+
+  const [briefingState, setBriefingState] = useState<{
+    readonly key: string;
+    readonly data: PersonalizedBriefingResponse | null;
+    readonly error: string | null;
+  } | null>(null);
   const [isRefreshingBriefing, setIsRefreshingBriefing] = useState(false);
 
-  const [routineData, setRoutineData] = useState<DailyRoutineResponse | null>(null);
-  const [routineError, setRoutineError] = useState<string | null>(null);
-  const [isLoadingRoutine, setIsLoadingRoutine] = useState(true);
+  const [routineState, setRoutineState] = useState<{
+    readonly key: string;
+    readonly data: DailyRoutineResponse | null;
+    readonly error: string | null;
+  } | null>(null);
+
+  const aqData = aqState?.data ?? null;
+  const aqError = aqState?.key === aqRequestKey ? aqState.error : null;
+  const isLoadingAq = aqState?.key !== aqRequestKey;
+
+  const routineData = routineState?.data ?? null;
+  const routineError = routineState?.key === aqRequestKey ? routineState.error : null;
+  const isLoadingRoutine = routineState?.key !== aqRequestKey;
+
+  const briefing = briefingState?.data ?? null;
+  const briefingError = briefingState?.key === briefingRequestKey ? briefingState.error : null;
+  const isLoadingBriefing = briefingState?.key !== briefingRequestKey;
 
   const [isExplorerOpen, setIsExplorerOpen] = useState(false);
   const [selectedRecId, setSelectedRecId] = useState('');
   const [selectedSourceModule, setSelectedSourceModule] =
     useState<AdvisorySourceModule>('routines');
-  const [selectedFocus, setSelectedFocus] = useState<AdvisoryExplanationFocus>('balanced');
   const [explanation, setExplanation] = useState<WhyRecommendationResponse | null>(null);
   const [isExplaining, setIsExplaining] = useState(false);
   const [explainError, setExplainError] = useState<string | null>(null);
@@ -127,8 +152,6 @@ export function OverviewPage({
     useState<ChoiceComparisonExplanationResponse | null>(null);
   const [isComparing, setIsComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
-
-  const profileSyncKey = buildProfileSyncKey(profile);
 
   const syncDefaultSelections = useCallback((nextBriefing: PersonalizedBriefingResponse) => {
     const firstPriority =
@@ -156,52 +179,49 @@ export function OverviewPage({
 
     let cancelled = false;
 
-    setIsLoadingAq(true);
-    setAqError(null);
-    void apiClient
-      .getAirQualityCurrent({ hours: 24 })
-      .then((res) => {
+    async function loadAirQualitySummary(): Promise<void> {
+      try {
+        const res = await apiClient.getAirQualityCurrent({ hours: 24 });
         if (!cancelled) {
-          setAqData(res);
+          setAqState({ key: aqRequestKey, data: res, error: null });
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!cancelled) {
           onSessionIssue?.(error);
-          setAqError(formatWorkspaceError(error, 'Air Quality Summary'));
+          setAqState((prev) => ({
+            key: aqRequestKey,
+            data: prev?.data ?? null,
+            error: formatWorkspaceError(error, 'Air Quality Summary'),
+          }));
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingAq(false);
-        }
-      });
+      }
+    }
 
-    setIsLoadingRoutine(true);
-    setRoutineError(null);
-    void apiClient
-      .getDailyRoutines()
-      .then((res) => {
+    async function loadUpcomingRoutine(): Promise<void> {
+      try {
+        const res = await apiClient.getDailyRoutines();
         if (!cancelled) {
-          setRoutineData(res);
+          setRoutineState({ key: aqRequestKey, data: res, error: null });
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!cancelled) {
           onSessionIssue?.(error);
-          setRoutineError(formatWorkspaceError(error, 'Upcoming Daily Routine'));
+          setRoutineState((prev) => ({
+            key: aqRequestKey,
+            data: prev?.data ?? null,
+            error: formatWorkspaceError(error, 'Upcoming Daily Routine'),
+          }));
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingRoutine(false);
-        }
-      });
+      }
+    }
+
+    void loadAirQualitySummary();
+    void loadUpcomingRoutine();
 
     return () => {
       cancelled = true;
     };
-  }, [apiClient, airQualitySyncToken, onSessionIssue, profileSyncKey]);
+  }, [apiClient, airQualitySyncToken, aqRequestKey, onSessionIssue, profileSyncKey]);
 
   useEffect(() => {
     if (profileSyncKey.length === 0 || airQualitySyncToken === '__never__') {
@@ -210,27 +230,26 @@ export function OverviewPage({
 
     let cancelled = false;
 
-    setIsLoadingBriefing(true);
-    setBriefingError(null);
-    void apiClient
-      .getPersonalizedBriefing({ focus: selectedFocus })
-      .then((res) => {
+    async function loadBriefing(): Promise<void> {
+      try {
+        const res = await apiClient.getPersonalizedBriefing({ focus: selectedFocus });
         if (!cancelled) {
-          setBriefing(res);
+          setBriefingState({ key: briefingRequestKey, data: res, error: null });
           syncDefaultSelections(res);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!cancelled) {
           onSessionIssue?.(error);
-          setBriefingError(formatWorkspaceError(error, 'Personalized Daily Briefing'));
+          setBriefingState((prev) => ({
+            key: briefingRequestKey,
+            data: prev?.data ?? null,
+            error: formatWorkspaceError(error, 'Personalized Daily Briefing'),
+          }));
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingBriefing(false);
-        }
-      });
+      }
+    }
+
+    void loadBriefing();
 
     return () => {
       cancelled = true;
@@ -238,6 +257,7 @@ export function OverviewPage({
   }, [
     apiClient,
     airQualitySyncToken,
+    briefingRequestKey,
     onSessionIssue,
     profileSyncKey,
     selectedFocus,
@@ -246,21 +266,24 @@ export function OverviewPage({
 
   const handleRefreshBriefing = useCallback(async () => {
     setIsRefreshingBriefing(true);
-    setBriefingError(null);
     try {
       const response = await apiClient.refreshPersonalizedAdvisory({
         focus: selectedFocus,
         forceRefresh: true,
       });
-      setBriefing(response);
+      setBriefingState({ key: briefingRequestKey, data: response, error: null });
       syncDefaultSelections(response);
     } catch (error) {
       onSessionIssue?.(error);
-      setBriefingError(formatWorkspaceError(error, 'Personalized Daily Briefing'));
+      setBriefingState((prev) => ({
+        key: briefingRequestKey,
+        data: prev?.data ?? null,
+        error: formatWorkspaceError(error, 'Personalized Daily Briefing'),
+      }));
     } finally {
       setIsRefreshingBriefing(false);
     }
-  }, [apiClient, onSessionIssue, selectedFocus, syncDefaultSelections]);
+  }, [apiClient, briefingRequestKey, onSessionIssue, selectedFocus, syncDefaultSelections]);
 
   const requestExplanationFor = useCallback(
     async (
@@ -348,7 +371,9 @@ export function OverviewPage({
   const euAqi = aqData?.aqi.europeanAqi;
   const usVisual = getAqiSeverityVisual(usAqi?.severityToken ?? 'unavailable');
   const UsIcon = usVisual.Icon;
-  const modeVisual = briefing ? getGenerationModeVisual(briefing.generationMeta.generationMode) : null;
+  const modeVisual = briefing
+    ? getGenerationModeVisual(briefing.generationMeta.generationMode)
+    : null;
   const ModeIcon = modeVisual?.Icon;
 
   return (
@@ -359,26 +384,18 @@ export function OverviewPage({
         description={`${profile.neighborhood}, ${profile.city}, ${profile.country} · Postal prefix ${profile.postalPrefix}`}
         actions={
           <>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => onNavigate('air-quality')}
-            >
+            <Button type="button" variant="secondary" onClick={() => onNavigate('air-quality')}>
               <MapPin className="h-4 w-4" aria-hidden="true" />
               Change location
             </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => onNavigate('household')}
-            >
+            <Button type="button" variant="primary" onClick={() => onNavigate('household')}>
               My Household
             </Button>
           </>
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <SurfaceCard
           as="section"
           aria-labelledby="overview-aqi-heading"
@@ -427,9 +444,7 @@ export function OverviewPage({
                 <div className={`rounded-xl border p-4 ${usVisual.surfaceClass}`}>
                   <div className="flex items-baseline justify-between gap-3">
                     <div>
-                      <p className="font-mono text-xs font-semibold text-slate-700">
-                        US AQI (EPA)
-                      </p>
+                      <p className="font-mono text-xs font-semibold text-slate-700">US AQI (EPA)</p>
                       <p
                         data-testid="overview-us-aqi-value"
                         className={`mt-1 font-mono text-4xl font-bold tabular-nums ${usVisual.textClass}`}
@@ -445,7 +460,10 @@ export function OverviewPage({
                         <span>{usAqi.category}</span>
                       </span>
                       <p className="mt-1 font-mono text-xs text-slate-700 tabular-nums">
-                        EEA AQI: {euAqi.value !== null ? `${euAqi.value} (${euAqi.category})` : 'Unavailable'}
+                        EEA AQI:{' '}
+                        {euAqi.value !== null
+                          ? `${euAqi.value} (${euAqi.category})`
+                          : 'Unavailable'}
                       </p>
                     </div>
                   </div>
@@ -591,9 +609,7 @@ export function OverviewPage({
                 onClick={() => setIsExplorerOpen((prev) => !prev)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
-                {isExplorerOpen
-                  ? 'Hide impact & choice explorer'
-                  : 'Open impact & choice explorer'}
+                {isExplorerOpen ? 'Hide impact & choice explorer' : 'Open impact & choice explorer'}
               </Button>
               <span className="text-xs text-slate-600">
                 {briefing.generationMeta.nonMedicalNotice}
@@ -627,7 +643,7 @@ export function OverviewPage({
             </p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             {topActions.map((action) => {
               const impactVisual = getAdvisoryImpactVisual(action.impactCategory);
               const ImpactIcon = impactVisual.Icon;
@@ -682,7 +698,7 @@ export function OverviewPage({
         )}
       </SurfaceCard>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SurfaceCard
           as="section"
           aria-labelledby="overview-routine-heading"
@@ -714,7 +730,9 @@ export function OverviewPage({
                   return (
                     <div className={`rounded-xl border p-4 ${statusVisual.surfaceClass}`}>
                       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-                        <span className={`inline-flex items-center gap-1 ${statusVisual.textClass}`}>
+                        <span
+                          className={`inline-flex items-center gap-1 ${statusVisual.textClass}`}
+                        >
                           <StatusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                           <span>{statusVisual.label}</span>
                         </span>
@@ -785,18 +803,18 @@ export function OverviewPage({
             {quickModuleLinks.map((item) => {
               const Icon = item.Icon;
               return (
-                <li key={item.id}>
+                <li key={item.id} className="min-w-0">
                   <a
                     href={buildWorkspaceUrl(item.id)}
                     onClick={(e) => handleLinkNavigate(e, item.id)}
-                    className="group flex min-h-11 items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-[#0F5132] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F5132]"
+                    className="group flex min-h-11 min-w-0 items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-[#0F5132] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F5132]"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <Icon
                         className="h-4 w-4 shrink-0 text-slate-600 group-hover:text-[#0F5132]"
                         aria-hidden="true"
                       />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-slate-950 group-hover:text-[#0F5132]">
                           {item.label}
                         </p>
@@ -825,7 +843,10 @@ export function OverviewPage({
             </SurfaceCard>
           }
         >
-          <div className="grid gap-6 xl:grid-cols-2" data-testid="overview-impact-explorer">
+          <div
+            className="grid grid-cols-1 gap-6 xl:grid-cols-2"
+            data-testid="overview-impact-explorer"
+          >
             <RecommendationExplainerPanel
               recommendations={briefing.availableRecommendations}
               selectedRecommendationId={selectedRecId}

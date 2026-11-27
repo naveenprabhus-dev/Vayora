@@ -20,7 +20,8 @@ export interface VerifiedProfileSummaryProps {
   readonly profile: HouseholdLifestyleRecord;
   readonly statusMessage?: string | undefined;
   readonly hideTopHero?: boolean | undefined;
-  readonly onEditProfile: () => void;
+  readonly hideEditAction?: boolean | undefined;
+  readonly onEditProfile?: (() => void) | undefined;
 }
 
 export function VerifiedProfileSummary({
@@ -29,6 +30,7 @@ export function VerifiedProfileSummary({
   profile,
   statusMessage,
   hideTopHero = false,
+  hideEditAction = false,
   onEditProfile,
 }: VerifiedProfileSummaryProps) {
   const compositionLabels = profile.householdComposition
@@ -101,10 +103,12 @@ export function VerifiedProfileSummary({
               </p>
             </div>
 
-            <Button type="button" variant="secondary" onClick={onEditProfile}>
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-              Edit preferences
-            </Button>
+            {onEditProfile && !hideEditAction ? (
+              <Button type="button" variant="secondary" onClick={onEditProfile}>
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Edit preferences
+              </Button>
+            ) : null}
           </div>
 
           <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">

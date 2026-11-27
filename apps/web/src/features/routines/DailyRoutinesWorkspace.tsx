@@ -22,7 +22,7 @@ export interface DailyRoutinesWorkspaceProps {
   readonly profile: HouseholdLifestyleRecord;
   readonly apiClient: WebApiClient;
   readonly airQualitySyncToken?: string | undefined;
-  readonly onSessionIssue?: (error: unknown) => void;
+  readonly onSessionIssue?: ((error: unknown) => void) | undefined;
 }
 
 export function DailyRoutinesWorkspace({

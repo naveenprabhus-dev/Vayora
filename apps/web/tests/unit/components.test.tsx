@@ -108,20 +108,49 @@ describe('@uaqa/web UI primitives and accessibility', () => {
     expect(link).toHaveAttribute('href', '#main-content');
   });
 
-  it('catches rendering failures inside ErrorBoundary with retry control', () => {
+  it('catches rendering failures inside ErrorBoundary without nested main landmarks and passes WCAG 2.2 AA', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     function BrokenChild(): never {
       throw new Error('Simulated render failure');
     }
 
-    render(
-      <ErrorBoundary>
+    const { container } = render(
+      <main id="main-content">
+        <ErrorBoundary>
+          <BrokenChild />
+        </ErrorBoundary>
+      </main>,
+    );
+
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveTextContent('Simulated render failure');
+    expect(screen.getByRole('button', { name: 'Retry View' })).toBeInTheDocument();
+
+    const nestedAudit = await axe.run(container, {
+      runOnly: {
+        type: 'tag',
+        values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'],
+      },
+    });
+    expect(nestedAudit.violations).toEqual([]);
+
+    cleanup();
+
+    const rootRender = render(
+      <ErrorBoundary landmark="main">
         <BrokenChild />
       </ErrorBoundary>,
     );
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Simulated render failure');
-    expect(screen.getByRole('button', { name: 'Retry View' })).toBeInTheDocument();
+    const rootAudit = await axe.run(rootRender.container, {
+      runOnly: {
+        type: 'tag',
+        values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'],
+      },
+    });
+    expect(rootAudit.violations).toEqual([]);
     consoleSpy.mockRestore();
   });
 

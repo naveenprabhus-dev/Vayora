@@ -594,7 +594,9 @@ test.describe('Phase 7 Full Application Integration & Multi-Page Consistency (Pl
     await expect(page.getByText('Personalized briefing in Gdansk')).toBeVisible();
 
     await navigateWorkspaceFromShell(page, isMobile, 'air-quality');
-    await expect(page.getByRole('heading', { level: 2, name: /Wrzeszcz, Gdansk, Poland/ })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 2, name: /Wrzeszcz, Gdansk, Poland/ }),
+    ).toBeVisible();
 
     await navigateWorkspaceFromShell(page, isMobile, 'daily-routines');
     await expect(page.getByText('Daily routines tailored for Gdansk')).toBeVisible();

@@ -4,7 +4,7 @@ import type {
   HouseholdLifestyleRecord,
 } from '@uaqa/contracts';
 import { KeyRound, LogOut, ShieldCheck } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   AlertBanner,
   Button,
@@ -13,7 +13,10 @@ import {
   SelectField,
   SurfaceCard,
 } from '../components/index.ts';
-import { GUIDANCE_FOCUS_OPTIONS, REMINDER_CADENCE_OPTIONS } from '../features/onboarding/options.ts';
+import {
+  GUIDANCE_FOCUS_OPTIONS,
+  REMINDER_CADENCE_OPTIONS,
+} from '../features/onboarding/options.ts';
 import type { WebApiClient } from '../lib/apiClient.ts';
 import type { AuthService, AuthUserSnapshot } from '../lib/authService.ts';
 import type { HouseholdStore } from '../lib/householdStore.ts';
@@ -41,23 +44,20 @@ export function SettingsPage({
   onSignOut,
   onSessionIssue,
 }: SettingsPageProps) {
-  const [preferredGuidanceFocus, setPreferredGuidanceFocus] = useState(
-    profile.lifestylePreferences.preferredGuidanceFocus,
-  );
-  const [reminderCadence, setReminderCadence] = useState(
-    profile.lifestylePreferences.reminderCadence,
-  );
-  const [alertsEnabled, setAlertsEnabled] = useState(profile.locationPreferences.alertsEnabled);
+  const profilePrefsKey = `${profile.lifestylePreferences.preferredGuidanceFocus}|${profile.lifestylePreferences.reminderCadence}|${String(profile.locationPreferences.alertsEnabled)}`;
+  const [draft, setDraft] = useState<{
+    readonly baseKey: string;
+    readonly preferredGuidanceFocus: HouseholdLifestyleInput['lifestylePreferences']['preferredGuidanceFocus'];
+    readonly reminderCadence: HouseholdLifestyleInput['lifestylePreferences']['reminderCadence'];
+    readonly alertsEnabled: boolean;
+  } | null>(null);
 
-  useEffect(() => {
-    setPreferredGuidanceFocus(profile.lifestylePreferences.preferredGuidanceFocus);
-    setReminderCadence(profile.lifestylePreferences.reminderCadence);
-    setAlertsEnabled(profile.locationPreferences.alertsEnabled);
-  }, [
-    profile.lifestylePreferences.preferredGuidanceFocus,
-    profile.lifestylePreferences.reminderCadence,
-    profile.locationPreferences.alertsEnabled,
-  ]);
+  const activeDraft = draft && draft.baseKey === profilePrefsKey ? draft : null;
+  const preferredGuidanceFocus =
+    activeDraft?.preferredGuidanceFocus ?? profile.lifestylePreferences.preferredGuidanceFocus;
+  const reminderCadence =
+    activeDraft?.reminderCadence ?? profile.lifestylePreferences.reminderCadence;
+  const alertsEnabled = activeDraft?.alertsEnabled ?? profile.locationPreferences.alertsEnabled;
 
   const [isSavingPrefs, setIsSavingPrefs] = useState(false);
   const [prefsNotice, setPrefsNotice] = useState<string | null>(null);
@@ -99,14 +99,13 @@ export function SettingsPage({
     try {
       await apiClient.saveHouseholdProfile(nextInput);
       const saved = await householdStore.saveHouseholdProfile(user.uid, nextInput);
+      setDraft(null);
       onProfileUpdated(saved);
       setPrefsNotice('Guidance focus and smog alert settings have been saved.');
     } catch (error) {
       onSessionIssue?.(error);
       setPrefsError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to save guidance preferences right now.',
+        error instanceof Error ? error.message : 'Unable to save guidance preferences right now.',
       );
     } finally {
       setIsSavingPrefs(false);
@@ -120,15 +119,11 @@ export function SettingsPage({
     try {
       await apiClient.requestPasswordResetAudit(user.email);
       await authService.sendPasswordReset(user.email);
-      setResetNotice(
-        `Password reset instructions have been sent to ${user.email}.`,
-      );
+      setResetNotice(`Password reset instructions have been sent to ${user.email}.`);
     } catch (error) {
       onSessionIssue?.(error);
       setResetError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to initiate password reset right now.',
+        error instanceof Error ? error.message : 'Unable to initiate password reset right now.',
       );
     } finally {
       setIsSendingReset(false);
@@ -147,7 +142,10 @@ export function SettingsPage({
         <SurfaceCard as="section" aria-labelledby="settings-preferences-heading">
           <form onSubmit={handleSavePreferences} className="space-y-5">
             <div className="border-b border-slate-200 pb-4">
-              <h2 id="settings-preferences-heading" className="text-lg font-semibold text-slate-950">
+              <h2
+                id="settings-preferences-heading"
+                className="text-lg font-semibold text-slate-950"
+              >
                 Guidance &amp; Alert Settings
               </h2>
               <p className="mt-1 text-xs text-slate-600">
@@ -173,12 +171,16 @@ export function SettingsPage({
               label="Preferred guidance focus"
               options={GUIDANCE_FOCUS_OPTIONS}
               value={preferredGuidanceFocus}
-              onChange={(e) =>
-                setPreferredGuidanceFocus(
-                  e.target
-                    .value as HouseholdLifestyleInput['lifestylePreferences']['preferredGuidanceFocus'],
-                )
-              }
+              onChange={(e) => {
+                const nextFocus = e.target
+                  .value as HouseholdLifestyleInput['lifestylePreferences']['preferredGuidanceFocus'];
+                setDraft({
+                  baseKey: profilePrefsKey,
+                  preferredGuidanceFocus: nextFocus,
+                  reminderCadence,
+                  alertsEnabled,
+                });
+              }}
             />
 
             <SelectField
@@ -186,18 +188,30 @@ export function SettingsPage({
               label="Routine reminder cadence"
               options={REMINDER_CADENCE_OPTIONS}
               value={reminderCadence}
-              onChange={(e) =>
-                setReminderCadence(
-                  e.target
-                    .value as HouseholdLifestyleInput['lifestylePreferences']['reminderCadence'],
-                )
-              }
+              onChange={(e) => {
+                const nextCadence = e.target
+                  .value as HouseholdLifestyleInput['lifestylePreferences']['reminderCadence'];
+                setDraft({
+                  baseKey: profilePrefsKey,
+                  preferredGuidanceFocus,
+                  reminderCadence: nextCadence,
+                  alertsEnabled,
+                });
+              }}
             />
 
             <CheckboxField
               id="settings-alerts-enabled"
               checked={alertsEnabled}
-              onChange={(e) => setAlertsEnabled(e.target.checked)}
+              onChange={(e) => {
+                const nextAlerts = e.target.checked;
+                setDraft({
+                  baseKey: profilePrefsKey,
+                  preferredGuidanceFocus,
+                  reminderCadence,
+                  alertsEnabled: nextAlerts,
+                });
+              }}
               label="Enable winter smog alert advisories"
               description={`Receive smog alerts aligned with ${profile.neighborhood}, ${profile.city}.`}
             />

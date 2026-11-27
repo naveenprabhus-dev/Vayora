@@ -37,7 +37,9 @@ export function WorkspaceShell({
   onSignOut,
   children,
 }: WorkspaceShellProps) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(readInitialSidebarCollapsed);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(
+    readInitialSidebarCollapsed,
+  );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const activeNavItem = getWorkspaceNavItem(activePage);

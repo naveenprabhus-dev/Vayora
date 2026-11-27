@@ -181,38 +181,95 @@ function createFullHarnessMocks() {
     }),
   };
 
-  const apiClient = {
+  const apiClient: WebApiClient = {
+    getHealth: vi.fn(async () => ({
+      status: 'ok' as const,
+      service: 'urban-air-quality-api' as const,
+      version: '0.1.0',
+      environment: 'test',
+      uptimeSeconds: 100,
+    })),
     getAuthSession: vi.fn(async () => ({
       authenticated: true as const,
       principal: {
         uid: VERIFIED_USER.uid,
         email: VERIFIED_USER.email,
         emailVerified: true,
-        role: 'member' as const,
+        role: 'regular_user' as const,
         authTimeSeconds: 1700000000,
       },
     })),
-    requestPasswordResetAudit: vi.fn(async () => ({ accepted: true })),
+    verifyToken: vi.fn(async () => ({
+      verified: true as const,
+      principal: {
+        uid: VERIFIED_USER.uid,
+        email: VERIFIED_USER.email,
+        emailVerified: true,
+        role: 'regular_user' as const,
+        authTimeSeconds: 1700000000,
+      },
+    })),
+    requestPasswordResetAudit: vi.fn(async () => ({
+      accepted: true,
+      message: 'Accepted.',
+    })),
     getHouseholdProfile: vi.fn(async () => ({ profile })),
     saveHouseholdProfile: vi.fn(async (input) => {
       profile = { ownerUid: VERIFIED_USER.uid, ...input };
       return { profile };
     }),
+    validateHouseholdProfile: vi.fn(async () => ({
+      valid: true as const,
+      ownerUid: VERIFIED_USER.uid,
+    })),
     updateAirQualityLocation: vi.fn(async (input) => ({
       location: makeAqCurrent(input.city, input.neighborhood).location,
       updatedAt: '2026-11-23T09:10:00Z',
     })),
     getAirQualityCurrent: vi.fn(async () => makeAqCurrent(profile.city, profile.neighborhood)),
-    getAirQualityForecast: vi.fn(async ({ hours = 24 }) => ({
-      location: makeAqCurrent(profile.city, profile.neighborhood).location,
-      horizonHours: hours,
-      dataNature: 'model_forecast' as const,
-      units: { usAqi: 'US AQI', europeanAqi: 'EAQI', pollutants: 'µg/m³' },
-      hourly: makeAqCurrent(profile.city, profile.neighborhood).forecastPreview,
-      transparency: makeAqCurrent(profile.city, profile.neighborhood).transparency,
+    getAirQualityForecast: vi.fn(async (query) => {
+      const aq = makeAqCurrent(profile.city, profile.neighborhood);
+      const hours = query?.hours === 48 ? 48 : 24;
+      return {
+        location: aq.location,
+        horizonHours: hours,
+        dataNature: 'model_forecast' as const,
+        units: { usAqi: 'US AQI', europeanAqi: 'EAQI', pollutants: 'µg/m³' },
+        hourly: aq.forecastPreview,
+        transparency: aq.transparency,
+      };
+    }),
+    getAirQualityPollutants: vi.fn(async () => {
+      const aq = makeAqCurrent(profile.city, profile.neighborhood);
+      return {
+        location: aq.location,
+        pollutants: aq.pollutants,
+        dominantPollutant: aq.aqi.dominantPollutant,
+        transparency: aq.transparency,
+      };
+    }),
+    getAirQualityGuidance: vi.fn(async () => {
+      const aq = makeAqCurrent(profile.city, profile.neighborhood);
+      return {
+        location: aq.location,
+        guidance: aq.guidance,
+        transparency: aq.transparency,
+      };
+    }),
+    getAirQualityHealth: vi.fn(async () => ({
+      status: 'ok' as const,
+      provider: 'open-meteo' as const,
+      providerReachable: true,
+      airQualityCacheEntries: 1,
+      geocodingCacheEntries: 1,
+      cacheTtlSeconds: 600,
+      staleTtlSeconds: 3600,
+      checkedAt: '2026-11-23T09:00:00Z',
     })),
     getDailyRoutines: vi.fn(async (): Promise<DailyRoutineResponse> => {
       const aq = makeAqCurrent(profile.city, profile.neighborhood);
+      const usVal = aq.aqi.usAqi.value ?? 50;
+      const euVal = aq.aqi.europeanAqi.value ?? 30;
       return {
         routineId: `r-${profile.city}`,
         generatedAt: '2026-11-23T09:02:00Z',
@@ -248,12 +305,18 @@ function createFullHarnessMocks() {
           status: 'available',
           windows: [
             {
-              startIso: '2026-11-23T13:00:00Z',
-              endIso: '2026-11-23T15:00:00Z',
+              id: `win-${profile.city}-midday`,
+              period: 'midday',
+              startTimestamp: '2026-11-23T13:00:00Z',
+              endTimestamp: '2026-11-23T15:00:00Z',
               label: '13:00–15:00',
-              expectedUsAqi: aq.aqi.usAqi.value ?? 50,
-              expectedEuropeanAqi: aq.aqi.europeanAqi.value ?? 30,
+              usAqiMin: usVal,
+              usAqiMax: usVal,
+              europeanAqiMin: euVal,
+              europeanAqiMax: euVal,
+              dataBasis: 'model_forecast',
               rationale: 'Lower daytime mixing window.',
+              cautionNote: 'Model forecast timing; check conditions before departure.',
             },
           ],
           limitationDisclosure: 'Forecast model timing only.',
@@ -270,31 +333,41 @@ function createFullHarnessMocks() {
             period: 'morning',
             label: 'Morning window',
             windowHint: '07:00–09:00',
+            periodSummary: 'Lower-exhaust morning school commute options.',
             items: [
               {
                 id: 'routine-morning-school',
                 period: 'morning',
+                category: 'commute',
                 title: `Transit school run in ${profile.city}`,
                 status: 'recommended',
-                statusLabel: 'Suitable now',
-                impactClassification: 'personal_exposure',
-                impactClassificationLabel: 'Personal exposure reduction',
+                statusReason: 'Public transit avoids personal vehicle cold-start emissions.',
+                priorityScore: 92,
                 suggestedWindow: '07:30–08:15',
+                impactType: 'exposure_reduction',
+                impactLabel: 'Personal exposure reduction',
                 explanation: {
                   whatToDo: 'Take covered rail stops away from main traffic lanes.',
-                  whyHelps: 'Lowers sidewalk exhaust inhalation.',
-                  tradeoffsOrLimitations: 'Requires extra departure lead time.',
+                  whyRecommended: 'Lowers sidewalk exhaust inhalation.',
+                  influencingData: [
+                    `US AQI ${usVal} in ${profile.city}`,
+                    'Saved public transit school-run commute',
+                  ],
+                  expectedBenefit: 'Cuts direct curbside particulate inhalation.',
+                  limitationsAndTradeoffs: 'Requires extra departure lead time.',
                 },
-                evidenceReference: {
-                  sourceName: 'EEA',
-                  sourceUrl: 'https://www.eea.europa.eu',
-                  versionOrDate: '2025',
-                },
+                airQualityContext: `Current ${profile.city} conditions (US AQI ${usVal}).`,
+                practicalAlternative: 'Use sheltered platform waiting areas.',
+                freshnessAndUncertainty: 'Atmospheric forecast output (Open-Meteo CC BY 4.0).',
+                informationBasis: 'rule_derived',
               },
             ],
           },
         ],
       };
+    }),
+    refreshDailyRoutines: vi.fn(async () => {
+      throw new Error('Unexpected refreshDailyRoutines call');
     }),
     getIndoorAirGuidance: vi.fn(async (): Promise<IndoorAirGuidanceResponse> => {
       const aq = makeAqCurrent(profile.city, profile.neighborhood);
@@ -517,7 +590,14 @@ function createFullHarnessMocks() {
         },
       };
     }),
-  } as unknown as WebApiClient;
+    refreshIndoorAirGuidance: vi.fn(),
+    compareSustainableAlternative: vi.fn(),
+    refreshSustainableAlternatives: vi.fn(),
+    explainRecommendation: vi.fn(),
+    compareChoicesExplanation: vi.fn(),
+    refreshPersonalizedAdvisory: vi.fn(),
+    getAdvisoryMetrics: vi.fn(),
+  };
 
   return { authService, householdStore, apiClient };
 }
@@ -546,11 +626,17 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
     ).toBeInTheDocument();
 
     // Concise Overview shows top 3 recommended actions (not the 4th) & next routine
-    expect(within(overviewPage).getByText('Shift outdoor errands to midday mixing hours')).toBeInTheDocument();
-    expect(within(overviewPage).getByText('Run HEPA purifier during evening cooking')).toBeInTheDocument();
-    expect(within(overviewPage).getByText('Bundle vehicle errands into one warm-engine loop')).toBeInTheDocument();
+    expect(
+      await within(overviewPage).findByText('Shift outdoor errands to midday mixing hours'),
+    ).toBeInTheDocument();
+    expect(
+      within(overviewPage).getByText('Run HEPA purifier during evening cooking'),
+    ).toBeInTheDocument();
+    expect(
+      within(overviewPage).getByText('Bundle vehicle errands into one warm-engine loop'),
+    ).toBeInTheDocument();
     expect(within(overviewPage).queryByText('Fourth lower-priority item')).not.toBeInTheDocument();
-    expect(within(overviewPage).getByTestId('overview-next-routine')).toHaveTextContent(
+    expect(await within(overviewPage).findByTestId('overview-next-routine')).toHaveTextContent(
       /Transit school run in Krakow/i,
     );
 
@@ -594,12 +680,36 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
     expect(window.location.pathname).toBe('/sustainable-alternatives');
     expect(apiClient.getSustainableAlternatives).toHaveBeenCalledTimes(1);
 
-    // Navigate to My Household -> verifies owner isolation disclosure
+    // Navigate to My Household -> verifies owner isolation disclosure & single edit action
     fireEvent.click(screen.getByTestId('sidebar-nav-household'));
     const householdPage = await screen.findByTestId('page-household');
     expect(householdPage).toBeInTheDocument();
     expect(window.location.pathname).toBe('/household');
     expect(within(householdPage).getByText('uid_shell_integration')).toBeInTheDocument();
+    expect(
+      within(householdPage).getAllByRole('button', { name: /Edit preferences/i }),
+    ).toHaveLength(1);
+
+    // Navigate to Air Quality -> uses cached AQ telemetry, then updates location to Gdansk
+    fireEvent.click(screen.getByTestId('sidebar-nav-air-quality'));
+    expect(await screen.findByTestId('page-air-quality')).toBeInTheDocument();
+    expect(await screen.findByTestId('air-quality-dashboard')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/air-quality');
+    expect(apiClient.getAirQualityCurrent).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change location' }));
+    fireEvent.change(screen.getByLabelText(/City/), { target: { value: 'Gdansk' } });
+    fireEvent.change(screen.getByLabelText(/Neighborhood or district/), {
+      target: { value: 'Wrzeszcz' },
+    });
+    fireEvent.change(screen.getByLabelText(/Postal prefix/), { target: { value: '80-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save location' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { level: 2, name: /Wrzeszcz, Gdansk, Poland/i }),
+      ).toBeInTheDocument();
+    });
 
     // Navigate to Settings -> update guidance focus & alert toggle + password reset
     fireEvent.click(screen.getByTestId('sidebar-nav-settings'));
@@ -617,27 +727,11 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
 
     fireEvent.click(screen.getByRole('button', { name: 'Send password reset email' }));
     expect(
-      await screen.findByText(/Password reset instructions have been sent to elena@household\.org/i),
+      await screen.findByText(
+        /Password reset instructions have been sent to elena@household\.org/i,
+      ),
     ).toBeInTheDocument();
     expect(authService.sendPasswordReset).toHaveBeenCalledWith('elena@household.org');
-
-    // Navigate to Air Quality -> uses cached AQ telemetry, then updates location to Gdansk
-    fireEvent.click(screen.getByTestId('sidebar-nav-air-quality'));
-    expect(await screen.findByTestId('page-air-quality')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/air-quality');
-    expect(apiClient.getAirQualityCurrent).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Change location' }));
-    fireEvent.change(screen.getByLabelText(/City/), { target: { value: 'Gdansk' } });
-    fireEvent.change(screen.getByLabelText(/Neighborhood or district/), {
-      target: { value: 'Wrzeszcz' },
-    });
-    fireEvent.change(screen.getByLabelText(/Postal prefix/), { target: { value: '80-2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save location' }));
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 2, name: /Wrzeszcz, Gdansk, Poland/i })).toBeInTheDocument();
-    });
 
     // Location update invalidated cache and propagates to Overview & Daily Routines
     fireEvent.click(screen.getByTestId('sidebar-nav-overview'));
@@ -682,7 +776,9 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Mobile navigation menu' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('dialog', { name: 'Mobile navigation menu' }),
+      ).not.toBeInTheDocument();
     });
     expect(menuTrigger).toHaveFocus();
 
@@ -690,7 +786,9 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
     fireEvent.click(menuTrigger);
     fireEvent.click(screen.getByTestId('mobile-nav-household'));
     expect(await screen.findByTestId('page-household')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: 'Mobile navigation menu' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Mobile navigation menu' }),
+    ).not.toBeInTheDocument();
 
     // Browser Back/Forward simulation via popstate
     window.history.replaceState({ workspacePage: 'overview' }, '', '/overview');
@@ -705,11 +803,13 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
   it('blocks unauthenticated access to nested workspace URLs and restores intended destination after login', async () => {
     window.history.replaceState({}, '', '/indoor-air');
     const { householdStore, apiClient } = createFullHarnessMocks();
-    let listener: ((u: AuthUserSnapshot | null) => void) | null = null;
+    const listenerRef: { current: ((u: AuthUserSnapshot | null) => void) | null } = {
+      current: null,
+    };
 
     const delayedAuthService: AuthService = {
       subscribeAuthState(cb) {
-        listener = cb;
+        listenerRef.current = cb;
         cb(null);
         return () => {};
       },
@@ -741,14 +841,52 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
     );
 
     // After signing in, user lands directly on the intended /indoor-air route
-    listener?.(VERIFIED_USER);
+    expect(listenerRef.current).not.toBeNull();
+    listenerRef.current?.(VERIFIED_USER);
     expect(await screen.findByTestId('page-indoor-air')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/indoor-air');
   });
 
-  it('formats 429 rate-limit errors consistently and logs out cleanly when any module receives 401 session expiration', async () => {
+  it('renders OverviewPage upcoming routine 429 error state independently without blocking AQI or briefing cards', async () => {
     const { authService, householdStore, apiClient } = createFullHarnessMocks();
     (apiClient.getDailyRoutines as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new ApiClientError({
+        message: 'Rate limited',
+        statusCode: 429,
+        code: 'RATE_LIMITED',
+        requestId: 'req-overview-429',
+      }),
+    );
+
+    render(<App authService={authService} householdStore={householdStore} apiClient={apiClient} />);
+
+    const overviewPage = await screen.findByTestId('page-overview');
+    expect(
+      await within(overviewPage).findByText(
+        /Too many requests while updating Upcoming Daily Routine/i,
+      ),
+    ).toBeInTheDocument();
+    expect(within(overviewPage).getByText('Upcoming routine unavailable')).toBeInTheDocument();
+    expect(await within(overviewPage).findByTestId('overview-us-aqi-value')).toHaveTextContent(
+      '142',
+    );
+    expect(
+      await within(overviewPage).findByText('Personalized briefing for Krakow'),
+    ).toBeInTheDocument();
+  });
+
+  it('formats 429 rate-limit errors consistently and logs out cleanly when any module receives 401 session expiration', async () => {
+    const { authService, householdStore, apiClient } = createFullHarnessMocks();
+
+    render(<App authService={authService} householdStore={householdStore} apiClient={apiClient} />);
+
+    // Allow initial Overview loads to settle cleanly before testing dedicated Daily Routines interaction
+    await screen.findByTestId('overview-next-routine');
+
+    fireEvent.click(await screen.findByTestId('sidebar-nav-daily-routines'));
+    await screen.findByTestId('daily-routines-workspace');
+
+    (apiClient.refreshDailyRoutines as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new ApiClientError({
         message: 'Rate limited',
         statusCode: 429,
@@ -756,10 +894,8 @@ describe('Phase 2 Multi-Page Workspace Navigation, Caching, Preferences & Access
         requestId: 'req-429',
       }),
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh routines' }));
 
-    render(<App authService={authService} householdStore={householdStore} apiClient={apiClient} />);
-
-    fireEvent.click(await screen.findByTestId('sidebar-nav-daily-routines'));
     expect(
       await screen.findByText(/Too many requests while updating Low-Emission Daily Routines/i),
     ).toBeInTheDocument();

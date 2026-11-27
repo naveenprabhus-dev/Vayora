@@ -57,15 +57,15 @@ export function ChoiceComparisonExplainerPanel({
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="min-w-0 space-y-1.5">
             <label htmlFor={selectAltId} className="block text-sm font-semibold text-slate-900">
               Select a sustainable alternative to explain
             </label>
             <select
               id={selectAltId}
               data-testid="advisory-compare-select"
-              className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#0F5132] focus:ring-2 focus:ring-[#0F5132] focus:outline-none"
+              className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#0F5132] focus:ring-2 focus:ring-[#0F5132] focus:outline-none"
               value={selectedAlternativeId}
               onChange={(event) => onSelectAlternativeId(event.target.value)}
             >
@@ -80,6 +80,7 @@ export function ChoiceComparisonExplainerPanel({
           <Button
             type="button"
             variant="primary"
+            className="scroll-mt-20"
             disabled={isComparing || alternativeOptions.length === 0}
             onClick={onRequestComparison}
           >

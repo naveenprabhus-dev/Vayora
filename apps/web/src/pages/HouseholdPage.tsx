@@ -88,6 +88,7 @@ export function HouseholdPage({
             profile={profile}
             statusMessage={statusMessage}
             hideTopHero
+            hideEditAction
             onEditProfile={() => {
               setStatusMessage(undefined);
               setIsEditing(true);
@@ -104,8 +105,8 @@ export function HouseholdPage({
                 <p className="text-slate-700">
                   Your household record is bound strictly to your verified owner ID (
                   <span className="font-mono text-xs text-slate-900">{profile.ownerUid}</span>) and
-                  enforced by Firestore security rules and server-verified API authorization.
-                  Other household accounts cannot read or modify your settings.
+                  enforced by Firestore security rules and server-verified API authorization. Other
+                  household accounts cannot read or modify your settings.
                 </p>
               </div>
             </div>

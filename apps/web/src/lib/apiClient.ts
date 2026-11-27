@@ -82,6 +82,7 @@ export interface AirQualityRequestOptions {
   readonly longitude?: number;
   readonly hours?: number;
   readonly scale?: AqiScaleId;
+  readonly forceRefresh?: boolean;
 }
 
 function buildAirQualityQueryString(query?: AirQualityRequestOptions): string {

@@ -47,6 +47,12 @@ export function getAdvisoryImpactVisual(category: AdvisoryImpactCategory): {
         textClass: 'text-slate-800',
         Icon: Leaf,
       };
+    default:
+      return {
+        label: 'Environmental guidance',
+        textClass: 'text-slate-800',
+        Icon: Leaf,
+      };
   }
 }
 
@@ -77,5 +83,7 @@ export function getSourceModuleLabel(sourceModule: AdvisorySourceModule): string
       return 'Indoor Air Assistant';
     case 'alternatives':
       return 'Sustainable Alternatives';
+    default:
+      return 'VAYORA Module';
   }
 }

@@ -121,7 +121,7 @@ export function DesktopSidebar({
 
       <nav aria-label="Primary navigation" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <div className="space-y-1">{renderNavItems(workspaceItems)}</div>
-        <div role="separator" className="my-3 border-t border-slate-200" />
+        <hr className="my-3 border-0 border-t border-slate-200" />
         <div className="space-y-1">{renderNavItems(accountItems)}</div>
       </nav>
 

@@ -123,6 +123,7 @@ export function getWorkspaceNavItem(pageId: WorkspacePageId): WorkspaceNavItem {
 }
 
 export function resolveWorkspacePageFromPath(pathname: string): WorkspacePageId | null {
-  const normalized = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   return NAV_BY_PATH.get(normalized)?.id ?? null;
 }

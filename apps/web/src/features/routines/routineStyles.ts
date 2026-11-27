@@ -36,6 +36,13 @@ export function getRoutineStatusVisual(status: RoutineActionStatus): RoutineStat
         textClass: 'text-amber-950',
         Icon: Ban,
       };
+    default:
+      return {
+        label: 'Routine guidance',
+        surfaceClass: 'border-slate-200 bg-slate-50',
+        textClass: 'text-slate-900',
+        Icon: Info,
+      };
   }
 }
 
@@ -62,6 +69,12 @@ export function getImpactTypeVisual(impactType: RoutineImpactType): {
         label: 'Exposure & emission reduction',
         textClass: 'text-[#0F5132]',
         Icon: Sparkles,
+      };
+    default:
+      return {
+        label: 'Air-quality routine benefit',
+        textClass: 'text-slate-800',
+        Icon: Shield,
       };
   }
 }

@@ -76,15 +76,15 @@ export function RecommendationExplainerPanel({
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="min-w-0 space-y-1.5">
             <label htmlFor={selectRecId} className="block text-sm font-semibold text-slate-900">
               Select a verified recommendation
             </label>
             <select
               id={selectRecId}
               data-testid="advisory-recommendation-select"
-              className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#0F5132] focus:ring-2 focus:ring-[#0F5132] focus:outline-none"
+              className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#0F5132] focus:ring-2 focus:ring-[#0F5132] focus:outline-none"
               value={`${selectedSourceModule}:${selectedRecommendationId}`}
               onChange={(event) => {
                 const [mod, ...rest] = event.target.value.split(':');
@@ -108,6 +108,7 @@ export function RecommendationExplainerPanel({
           <Button
             type="button"
             variant="primary"
+            className="scroll-mt-20"
             disabled={isExplaining || recommendations.length === 0}
             onClick={onRequestExplanation}
           >

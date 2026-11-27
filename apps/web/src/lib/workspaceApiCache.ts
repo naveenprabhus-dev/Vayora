@@ -97,8 +97,15 @@ export function createCachedWorkspaceApiClient(baseClient: WebApiClient): Worksp
     },
 
     getAirQualityCurrent(query?: AirQualityRequestOptions) {
-      const key = serializeKey('aq', query ?? { hours: 24 });
-      return cachedCall(airQualityCurrentCache, key, () => baseClient.getAirQualityCurrent(query));
+      const { forceRefresh, ...requestQuery } = query ?? {};
+      const normalizedQuery = Object.keys(requestQuery).length > 0 ? requestQuery : undefined;
+      const key = serializeKey('aq', normalizedQuery ?? { hours: 24 });
+      if (forceRefresh) {
+        airQualityCurrentCache.delete(key);
+      }
+      return cachedCall(airQualityCurrentCache, key, () =>
+        baseClient.getAirQualityCurrent(normalizedQuery),
+      );
     },
 
     getAirQualityForecast: (query?: AirQualityRequestOptions) =>
@@ -118,7 +125,6 @@ export function createCachedWorkspaceApiClient(baseClient: WebApiClient): Worksp
       routinesCache.clear();
       const refreshed = await baseClient.refreshDailyRoutines(input);
       const key = serializeKey('routines', {
-        ...(input?.date !== undefined ? { date: input.date } : {}),
         ...(input?.commuteMode !== undefined ? { commuteMode: input.commuteMode } : {}),
         ...(input?.outdoorActivityPattern !== undefined
           ? { outdoorActivityPattern: input.outdoorActivityPattern }

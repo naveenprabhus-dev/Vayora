@@ -6,8 +6,8 @@ export interface BetterTimeWindowsPanelProps {
   readonly betterTimeWindows: BetterTimeWindowsSummary;
 }
 
-function formatAqiRange(min: number | null, max: number | null): string {
-  if (min === null || max === null) {
+function formatAqiRange(min: number | null | undefined, max: number | null | undefined): string {
+  if (min === null || min === undefined || max === null || max === undefined) {
     return 'Unavailable';
   }
   return min === max ? String(min) : `${min}–${max}`;
@@ -43,8 +43,11 @@ export function BetterTimeWindowsPanel({ betterTimeWindows }: BetterTimeWindowsP
         </div>
       ) : (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {betterTimeWindows.windows.map((win) => (
-            <article key={win.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          {betterTimeWindows.windows.map((win, index) => (
+            <article
+              key={win.id || `${win.startTimestamp}-${win.label}-${index}`}
+              className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+            >
               <p className="font-mono text-xs font-semibold text-[#0F5132]">
                 {win.dataBasis === 'stale_model_forecast'
                   ? 'Stale cached forecast window'

@@ -14,8 +14,7 @@ export interface MobileNavDrawerProps {
   readonly onSignOut: () => Promise<void> | void;
 }
 
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function MobileNavDrawer({
   isOpen,
@@ -26,7 +25,7 @@ export function MobileNavDrawer({
   onNavigate,
   onSignOut,
 }: MobileNavDrawerProps) {
-  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const drawerRef = useRef<HTMLDialogElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -135,13 +134,13 @@ export function MobileNavDrawer({
         className="fixed inset-0 bg-slate-950/45 transition-opacity duration-200"
       />
 
-      <div
+      <dialog
+        open
         ref={drawerRef}
         id="mobile-navigation-drawer"
-        role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation menu"
-        className="relative z-10 flex h-full w-[280px] max-w-[85vw] flex-col border-r border-slate-200 bg-white shadow-xl"
+        className="relative inset-auto z-10 m-0 flex h-full w-[280px] max-w-[85vw] flex-col border-0 border-r border-slate-200 bg-white p-0 text-slate-900 shadow-xl"
       >
         <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
           <div className="flex items-center gap-2.5">
@@ -168,7 +167,7 @@ export function MobileNavDrawer({
           className="flex-1 space-y-1 overflow-y-auto px-3 py-4"
         >
           <div className="space-y-1">{renderDrawerItems(workspaceItems)}</div>
-          <div role="separator" className="my-3 border-t border-slate-200" />
+          <hr className="my-3 border-0 border-t border-slate-200" />
           <div className="space-y-1">{renderDrawerItems(accountItems)}</div>
         </nav>
 
@@ -189,7 +188,7 @@ export function MobileNavDrawer({
             <span>Sign out</span>
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

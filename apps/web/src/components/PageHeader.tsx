@@ -19,9 +19,7 @@ export function PageHeader({
     <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1.5">
         {kicker ? (
-          <p className="font-mono text-xs font-semibold tracking-wide text-[#0F5132]">
-            {kicker}
-          </p>
+          <p className="font-mono text-xs font-semibold tracking-wide text-[#0F5132]">{kicker}</p>
         ) : null}
         <h1
           id={headingId}

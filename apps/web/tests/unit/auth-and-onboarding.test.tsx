@@ -1119,7 +1119,13 @@ describe('Phase 1 Authentication & Household Onboarding Flows', () => {
       await screen.findByRole('heading', { level: 1, name: /My Household/i }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Edit preferences/i }));
+    const editButtons = screen.getAllByRole('button', { name: /Edit preferences/i });
+    expect(editButtons).toHaveLength(1);
+    const [editButton] = editButtons;
+    if (!editButton) {
+      throw new Error('Expected Edit preferences button to be rendered.');
+    }
+    fireEvent.click(editButton);
     expect(
       await screen.findByRole('heading', {
         level: 1,

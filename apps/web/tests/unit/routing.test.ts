@@ -54,7 +54,9 @@ describe('Phase 2 Routing & Workspace API Cache (Unit)', () => {
   });
 
   it('builds clean paths for production URLs and preserves ?page= query params inside HTML test harnesses', () => {
-    expect(buildWorkspaceUrl('indoor-air', { pathname: '/overview', search: '' })).toBe('/indoor-air');
+    expect(buildWorkspaceUrl('indoor-air', { pathname: '/overview', search: '' })).toBe(
+      '/indoor-air',
+    );
     expect(
       buildWorkspaceUrl('indoor-air', {
         pathname: '/apps/web/tests/e2e/dashboard-harness.html',

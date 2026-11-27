@@ -24,8 +24,8 @@ export interface AirQualityDashboardProps {
   readonly apiClient: WebApiClient;
   readonly householdStore: HouseholdStore;
   readonly onProfileUpdated: (updated: HouseholdLifestyleRecord) => void;
-  readonly onTelemetryUpdated?: (syncToken: string) => void;
-  readonly onSessionIssue?: (error: unknown) => void;
+  readonly onTelemetryUpdated?: ((syncToken: string) => void) | undefined;
+  readonly onSessionIssue?: ((error: unknown) => void) | undefined;
 }
 
 export function AirQualityDashboard({
@@ -68,7 +68,10 @@ export function AirQualityDashboard({
       setLoadError(null);
 
       try {
-        const response = await apiClient.getAirQualityCurrent({ hours: targetHours });
+        const response = await apiClient.getAirQualityCurrent({
+          hours: targetHours,
+          ...(opts?.silentRefresh ? { forceRefresh: true } : {}),
+        });
         setCurrentData(response);
         setForecastSeries(response.forecastPreview);
         if (opts?.notifyDownstream !== false) {

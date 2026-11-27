@@ -270,12 +270,18 @@ async function setupNavigationRoutes(page: Page) {
               status: 'available',
               windows: [
                 {
-                  startIso: '2026-11-23T13:00:00Z',
-                  endIso: '2026-11-23T15:00:00Z',
+                  id: 'nav-window-midday-1',
+                  period: 'midday',
+                  startTimestamp: '2026-11-23T13:00:00Z',
+                  endTimestamp: '2026-11-23T15:00:00Z',
                   label: '13:00–15:00',
-                  expectedUsAqi: 68,
-                  expectedEuropeanAqi: 35,
+                  usAqiMin: 68,
+                  usAqiMax: 68,
+                  europeanAqiMin: 35,
+                  europeanAqiMax: 35,
+                  dataBasis: 'model_forecast',
                   rationale: 'Improved afternoon dispersion.',
+                  cautionNote: 'Forecast model estimate only.',
                 },
               ],
               limitationDisclosure: 'Atmospheric model estimate.',
@@ -292,26 +298,33 @@ async function setupNavigationRoutes(page: Page) {
                 period: 'morning',
                 label: 'Morning window',
                 windowHint: '07:00–09:00',
+                periodSummary: 'Lower-exhaust transit options during morning rush.',
                 items: [
                   {
                     id: 'morning-transit-walk',
                     period: 'morning',
+                    category: 'commute',
                     title: 'Use side-street path to tram stop',
                     status: 'recommended',
-                    statusLabel: 'Suitable now',
-                    impactClassification: 'personal_exposure',
-                    impactClassificationLabel: 'Personal exposure reduction',
+                    statusReason: 'Reduces near-roadway exhaust inhalation.',
+                    priorityScore: 90,
                     suggestedWindow: '07:45–08:15',
+                    impactType: 'exposure_reduction',
+                    impactLabel: 'Personal exposure reduction',
                     explanation: {
                       whatToDo: 'Walk one block off main arterial road.',
-                      whyHelps: 'Reduces curbside exhaust spikes.',
-                      tradeoffsOrLimitations: 'Adds 2 minutes walking time.',
+                      whyRecommended: 'Reduces curbside exhaust spikes.',
+                      influencingData: [
+                        'Moderate corridor NO2 and PM2.5',
+                        'Public transit commute',
+                      ],
+                      expectedBenefit: 'Lower personal particulate exposure while walking to tram.',
+                      limitationsAndTradeoffs: 'Adds 2 minutes walking time.',
                     },
-                    evidenceReference: {
-                      sourceName: 'EEA',
-                      sourceUrl: 'https://www.eea.europa.eu',
-                      versionOrDate: '2025',
-                    },
+                    airQualityContext: 'US AQI 92 (Moderate) in Krowodrza.',
+                    practicalAlternative: 'Board at the covered tram shelter one stop south.',
+                    freshnessAndUncertainty: 'Model forecast guidance (Open-Meteo CC BY 4.0).',
+                    informationBasis: 'rule_derived',
                   },
                 ],
               },
@@ -519,8 +532,8 @@ async function setupNavigationRoutes(page: Page) {
                 sourceModule: 'alternatives',
                 title: 'Batch errands into one afternoon trip',
                 rationale: 'Avoids morning peak congestion.',
-                impactCategory: 'both_exposure_and_emissions',
-                impactCategoryLabel: 'Both personal exposure and local emissions',
+                impactCategory: 'both',
+                impactCategoryLabel: 'Exposure & emissions co-benefit',
                 deterministicStatus: 'recommended',
               },
             ],
@@ -633,11 +646,7 @@ test.describe('Phase 2 Navigation, Nested Routing, Responsive Sidebar & Mobile D
     // Visit remaining pages
     const destinations: ReadonlyArray<{
       readonly id:
-        | 'daily-routines'
-        | 'indoor-air'
-        | 'sustainable-alternatives'
-        | 'household'
-        | 'settings';
+        'daily-routines' | 'indoor-air' | 'sustainable-alternatives' | 'household' | 'settings';
       readonly heading: RegExp;
     }> = [
       { id: 'daily-routines', heading: /Low-Emission Daily Routines/i },
@@ -655,9 +664,7 @@ test.describe('Phase 2 Navigation, Nested Routing, Responsive Sidebar & Mobile D
         await page.getByTestId(`sidebar-nav-${dest.id}`).click();
       }
       await expect(page.getByTestId(`page-${dest.id}`)).toBeVisible();
-      await expect(
-        page.getByRole('heading', { level: 1, name: dest.heading }),
-      ).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: dest.heading })).toBeVisible();
     }
 
     // Verify Settings save action & password reset

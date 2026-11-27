@@ -14,7 +14,7 @@ export function SurfaceCard({
 }: SurfaceCardProps) {
   return (
     <Component
-      className={`rounded-xl border border-slate-200 bg-white p-6 ${className}`.trim()}
+      className={`min-w-0 rounded-xl border border-slate-200 bg-white p-6 ${className}`.trim()}
       {...rest}
     >
       {children}
