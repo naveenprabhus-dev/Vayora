@@ -2,11 +2,8 @@ import { MailCheck, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
-import {
-  AuthServiceError,
-  type AuthService,
-  type AuthUserSnapshot,
-} from '../../lib/authService.ts';
+import type { AuthService, AuthUserSnapshot } from '../../lib/authService.ts';
+import { formatSafeUserError } from '../../lib/errorMessages.ts';
 
 export interface VerifyEmailScreenProps {
   readonly user: AuthUserSnapshot;
@@ -71,9 +68,10 @@ export function VerifyEmailScreen({
           return;
         }
         setErrorMsg(
-          error instanceof Error
-            ? error.message
-            : 'This verification link is invalid or expired. Request a new email below.',
+          formatSafeUserError(
+            error,
+            'This verification link is invalid or expired. Request a new email below.',
+          ),
         );
       } finally {
         if (active) {
@@ -113,13 +111,9 @@ export function VerifyEmailScreen({
 
       await onVerified(refreshed);
     } catch (error) {
-      if (error instanceof AuthServiceError) {
-        setErrorMsg(error.message);
-      } else if (error instanceof Error) {
-        setErrorMsg(error.message);
-      } else {
-        setErrorMsg('Unable to verify your email status with the server.');
-      }
+      setErrorMsg(
+        formatSafeUserError(error, 'Unable to verify your email status with the server.'),
+      );
     } finally {
       setIsChecking(false);
     }
@@ -135,9 +129,10 @@ export function VerifyEmailScreen({
       setStatusNotice(`A fresh verification email was sent to ${user.email}.`);
     } catch (error) {
       setErrorMsg(
-        error instanceof Error
-          ? error.message
-          : 'Unable to resend verification email. Please wait and try again.',
+        formatSafeUserError(
+          error,
+          'Unable to resend verification email. Please wait and try again.',
+        ),
       );
     } finally {
       setIsResending(false);

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { AlertBanner, Button, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import type { AuthUserSnapshot } from '../../lib/authService.ts';
+import { formatSafeUserError } from '../../lib/errorMessages.ts';
 import type { HouseholdStore } from '../../lib/householdStore.ts';
 import { extractZodFieldErrors } from '../auth/validationHelpers.ts';
 import { OnboardingStepIndoor } from './OnboardingStepIndoor.tsx';
@@ -162,9 +163,7 @@ export function HouseholdOnboardingWizard({
       const msg =
         error instanceof z.ZodError
           ? 'Please review the highlighted household fields.'
-          : error instanceof Error
-            ? error.message
-            : 'Unable to save household preferences right now.';
+          : formatSafeUserError(error, 'Unable to save household preferences right now.');
       setFormError(msg);
     } finally {
       setIsSaving(false);

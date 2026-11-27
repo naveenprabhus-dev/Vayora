@@ -15,6 +15,7 @@ import {
   type AuthUserSnapshot,
 } from '../lib/authService.ts';
 import type { HouseholdStore } from '../lib/householdStore.ts';
+import { formatSafeUserError } from '../lib/errorMessages.ts';
 import { createLazyFirestoreStore } from '../lib/lazyHouseholdStore.ts';
 import { toHouseholdLifestyleInput } from '../lib/profileSync.ts';
 import { createCachedWorkspaceApiClient } from '../lib/workspaceApiCache.ts';
@@ -101,7 +102,7 @@ function UrbanAirQualityAppShell({
   const [route, setRoute] = useState<AppRoute>(initialUrl.route);
   const [workspacePage, setWorkspacePage] = useState<WorkspacePageId>(initialUrl.workspacePage);
   const [oobCode, setOobCode] = useState<string | null>(initialUrl.oobCode);
-  const [pendingTermsIso, setPendingTermsIso] = useState<string | undefined>(undefined);
+  const pendingTermsIsoRef = useRef<string | undefined>(undefined);
   const [statusMessage, setStatusMessage] = useState<string | undefined>(
     initialUrl.blockedProtectedRoute
       ? 'Sign in with a verified household account to access protected onboarding routes.'
@@ -143,11 +144,6 @@ function UrbanAirQualityAppShell({
       setIsSyncingSession(true);
       setSessionError(null);
       try {
-        if (!injectedAuth) {
-          void import('../lib/firebaseFirestore.ts').then(({ testFirestoreConnection }) =>
-            testFirestoreConnection(),
-          );
-        }
         await authService.getFreshIdToken(true);
         const session = await apiClient.getAuthSession();
 
@@ -159,6 +155,9 @@ function UrbanAirQualityAppShell({
 
         setPrincipal(session.principal);
         await householdStore.syncVerifiedUserAccount(verifiedUser, termsIso);
+        if (termsIso !== undefined && pendingTermsIsoRef.current === termsIso) {
+          pendingTermsIsoRef.current = undefined;
+        }
 
         let profile = await householdStore.getHouseholdProfile(verifiedUser.uid);
         if (!profile) {
@@ -211,16 +210,14 @@ function UrbanAirQualityAppShell({
           setRoute('verify-email');
         } else {
           setSessionError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to verify your session with the backend server.',
+            formatSafeUserError(error, 'Unable to verify your session with the backend server.'),
           );
         }
       } finally {
         setIsSyncingSession(false);
       }
     },
-    [apiClient, authService, householdStore, injectedAuth],
+    [apiClient, authService, householdStore],
   );
 
   useEffect(() => {
@@ -230,6 +227,7 @@ function UrbanAirQualityAppShell({
 
       if (!nextUser) {
         apiClient.invalidateWorkspaceCache();
+        pendingTermsIsoRef.current = undefined;
         setPrincipal(null);
         setHouseholdProfile(null);
         setRoute((prev) =>
@@ -246,11 +244,11 @@ function UrbanAirQualityAppShell({
         return;
       }
 
-      void hydrateVerifiedWorkspace(nextUser, pendingTermsIso);
+      void hydrateVerifiedWorkspace(nextUser, pendingTermsIsoRef.current);
     });
 
     return () => unsubscribe();
-  }, [apiClient, authService, hydrateVerifiedWorkspace, pendingTermsIso]);
+  }, [apiClient, authService, hydrateVerifiedWorkspace]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -283,6 +281,7 @@ function UrbanAirQualityAppShell({
   const handleSignOut = useCallback(async () => {
     apiClient.invalidateWorkspaceCache();
     intendedWorkspacePageRef.current = null;
+    pendingTermsIsoRef.current = undefined;
     await authService.logout();
     setUser(null);
     setPrincipal(null);
@@ -406,7 +405,7 @@ function UrbanAirQualityAppShell({
         <RegisterForm
           authService={authService}
           onRegistered={(registeredUser, acceptedAtIso) => {
-            setPendingTermsIso(acceptedAtIso);
+            pendingTermsIsoRef.current = acceptedAtIso;
             setUser(registeredUser);
             setStatusMessage(undefined);
             setRoute('verify-email');
@@ -449,7 +448,7 @@ function UrbanAirQualityAppShell({
           onVerified={async (verifiedUser) => {
             setOobCode(null);
             setUser(verifiedUser);
-            await hydrateVerifiedWorkspace(verifiedUser, pendingTermsIso);
+            await hydrateVerifiedWorkspace(verifiedUser, pendingTermsIsoRef.current);
           }}
           onSignOut={handleSignOut}
         />

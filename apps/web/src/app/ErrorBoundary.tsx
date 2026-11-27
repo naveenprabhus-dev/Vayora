@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertBanner, Button, SurfaceCard } from '../components/index.ts';
+import { formatSafeUserError } from '../lib/errorMessages.ts';
 
 export interface ErrorBoundaryProps {
   readonly children: ReactNode;
@@ -42,13 +43,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: true,
       message: isModuleSkew
         ? 'Application modules fell out of sync after an update. Reloading restores a consistent session.'
-        : error.message || 'An unexpected rendering error occurred.',
+        : formatSafeUserError(error, 'An unexpected rendering error occurred.'),
       isModuleSkew,
     };
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Unhandled UI error:', error.message, errorInfo.componentStack);
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'production') {
+      console.error(
+        'Unhandled UI error:',
+        formatSafeUserError(error, 'An unexpected rendering error occurred.'),
+        errorInfo.componentStack,
+      );
+    } else {
+      console.error('Unhandled UI error:', error.name || 'Error');
+    }
     if (isModuleSkewError(error) && typeof window !== 'undefined') {
       try {
         const lastReloadRaw = window.sessionStorage.getItem(MODULE_SKEW_RELOAD_KEY);

@@ -8,6 +8,7 @@ import {
   SurfaceCard,
 } from '../../components/index.ts';
 import type { AuthService } from '../../lib/authService.ts';
+import { formatSafeUserError } from '../../lib/errorMessages.ts';
 import { extractZodFieldErrors } from './validationHelpers.ts';
 
 export interface ResetPasswordFormProps {
@@ -53,9 +54,7 @@ export function ResetPasswordForm({
         if (active) {
           setCodeStatus('invalid');
           setCodeError(
-            error instanceof Error
-              ? error.message
-              : 'This password reset link is invalid or has expired.',
+            formatSafeUserError(error, 'This password reset link is invalid or has expired.'),
           );
         }
       }
@@ -87,9 +86,10 @@ export function ResetPasswordForm({
       onResetComplete();
     } catch (error) {
       setSubmitError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to update your password. Request a new reset link and try again.',
+        formatSafeUserError(
+          error,
+          'Unable to update your password. Request a new reset link and try again.',
+        ),
       );
     } finally {
       setIsSubmitting(false);

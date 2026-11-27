@@ -7,11 +7,8 @@ import {
   PasswordInput,
   SurfaceCard,
 } from '../../components/index.ts';
-import {
-  AuthServiceError,
-  type AuthService,
-  type AuthUserSnapshot,
-} from '../../lib/authService.ts';
+import type { AuthService, AuthUserSnapshot } from '../../lib/authService.ts';
+import { formatSafeUserError } from '../../lib/errorMessages.ts';
 import { extractZodFieldErrors } from './validationHelpers.ts';
 
 export interface LoginFormProps {
@@ -51,13 +48,7 @@ export function LoginForm({
       const user = await authService.login(parsed.data);
       await onAuthenticated(user);
     } catch (error) {
-      if (error instanceof AuthServiceError) {
-        setFormError(error.message);
-      } else if (error instanceof Error) {
-        setFormError(error.message);
-      } else {
-        setFormError('Unable to sign in right now. Please try again.');
-      }
+      setFormError(formatSafeUserError(error, 'Unable to sign in right now. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

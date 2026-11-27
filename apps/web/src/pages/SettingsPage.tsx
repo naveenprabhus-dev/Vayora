@@ -19,6 +19,7 @@ import {
 } from '../features/onboarding/options.ts';
 import type { WebApiClient } from '../lib/apiClient.ts';
 import type { AuthService, AuthUserSnapshot } from '../lib/authService.ts';
+import { formatSafeUserError } from '../lib/errorMessages.ts';
 import type { HouseholdStore } from '../lib/householdStore.ts';
 import { toHouseholdLifestyleInput } from '../lib/profileSync.ts';
 
@@ -93,9 +94,7 @@ export function SettingsPage({
       setPrefsNotice('Guidance focus and smog alert settings have been saved.');
     } catch (error) {
       onSessionIssue?.(error);
-      setPrefsError(
-        error instanceof Error ? error.message : 'Unable to save guidance preferences right now.',
-      );
+      setPrefsError(formatSafeUserError(error, 'Unable to save guidance preferences right now.'));
     } finally {
       setIsSavingPrefs(false);
     }
@@ -111,9 +110,7 @@ export function SettingsPage({
       setResetNotice(`Password reset instructions have been sent to ${user.email}.`);
     } catch (error) {
       onSessionIssue?.(error);
-      setResetError(
-        error instanceof Error ? error.message : 'Unable to initiate password reset right now.',
-      );
+      setResetError(formatSafeUserError(error, 'Unable to initiate password reset right now.'));
     } finally {
       setIsSendingReset(false);
     }

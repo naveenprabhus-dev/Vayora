@@ -19,7 +19,10 @@ export function createErrorHandler(isProduction: boolean) {
               level: 'error',
               requestId,
               code: err.code,
-              message: err.message,
+              message:
+                isProduction && !err.exposeMessage
+                  ? 'An internal server error occurred.'
+                  : err.message,
             }),
           ),
         );
@@ -85,12 +88,21 @@ export function createErrorHandler(isProduction: boolean) {
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     console.error(
       JSON.stringify(
-        redactSensitiveData({
-          level: 'error',
-          requestId,
-          message: rawMessage,
-          ...(isProduction || !(err instanceof Error) ? {} : { stack: err.stack }),
-        }),
+        redactSensitiveData(
+          isProduction
+            ? {
+                level: 'error',
+                requestId,
+                errorName: err instanceof Error ? err.name : 'UnknownError',
+                message: 'An unexpected internal error occurred.',
+              }
+            : {
+                level: 'error',
+                requestId,
+                message: rawMessage,
+                ...(err instanceof Error ? { stack: err.stack } : {}),
+              },
+        ),
       ),
     );
 

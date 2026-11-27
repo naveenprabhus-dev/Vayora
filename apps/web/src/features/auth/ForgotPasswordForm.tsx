@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { AlertBanner, Button, FormField, SurfaceCard } from '../../components/index.ts';
 import type { WebApiClient } from '../../lib/apiClient.ts';
 import type { AuthService } from '../../lib/authService.ts';
+import { formatSafeUserError } from '../../lib/errorMessages.ts';
 import { extractZodFieldErrors } from './validationHelpers.ts';
 
 export interface ForgotPasswordFormProps {
@@ -46,9 +47,10 @@ export function ForgotPasswordForm({
       setSubmittedMessage(GENERIC_RESET_CONFIRMATION);
     } catch (error) {
       setErrorMsg(
-        error instanceof Error
-          ? error.message
-          : 'Unable to process password recovery right now. Please try again.',
+        formatSafeUserError(
+          error,
+          'Unable to process password recovery right now. Please try again.',
+        ),
       );
     } finally {
       setIsSubmitting(false);

@@ -229,7 +229,9 @@ describe('Firebase Client Configuration Resolution & Singleton Initialization', 
     expect(typeof firebaseMod.getFirebaseApp).toBe('function');
     expect(typeof firebaseMod.getFirebaseAuth).toBe('function');
     expect(typeof firestoreMod.getFirestoreDb).toBe('function');
-    expect(typeof firestoreMod.testFirestoreConnection).toBe('function');
+    expect('testFirestoreConnection' in firestoreMod).toBe(false);
+    expect(typeof firestoreMod.FirestoreOperationError).toBe('function');
+    expect(typeof firestoreMod.sanitizeFirestorePath).toBe('function');
     expect(typeof firestoreMod.handleFirestoreError).toBe('function');
     expect(typeof householdMod.FirestoreHouseholdStore).toBe('function');
   });

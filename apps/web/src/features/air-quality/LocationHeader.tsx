@@ -7,6 +7,7 @@ import {
 import { MapPin, RefreshCw } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { AlertBanner, Button, FormField, SurfaceCard } from '../../components/index.ts';
+import { formatSafeUserError } from '../../lib/errorMessages.ts';
 import { formatIsoTimestamp } from './severityStyles.ts';
 
 export interface LocationHeaderProps {
@@ -79,9 +80,7 @@ export function LocationHeader({
       setIsEditingLocation(false);
     } catch (error) {
       setSubmitError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to resolve or save this household location.',
+        formatSafeUserError(error, 'Unable to resolve or save this household location.'),
       );
     }
   }

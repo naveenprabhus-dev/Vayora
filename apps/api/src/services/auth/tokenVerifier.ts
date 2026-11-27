@@ -61,6 +61,11 @@ export class FirebaseAdminTokenVerifier implements TokenVerifier {
       if (code === 'auth/id-token-expired' || code === 'auth/id-token-revoked') {
         throw new UnauthorizedError('Your session has expired. Please sign in again.');
       }
+      if (code === 'auth/user-disabled') {
+        throw new UnauthorizedError(
+          'This account is currently disabled. Contact support for assistance.',
+        );
+      }
       throw new UnauthorizedError('Invalid or expired authentication token.');
     }
   }
